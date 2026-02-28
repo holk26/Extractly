@@ -41,7 +41,14 @@ Interactive docs (Swagger UI) are available at `http://localhost:8000/docs`.
 ### Running with Docker
 
 ```bash
-docker-compose up --build
+docker build -t extractly .
+docker run -p 8000:8000 extractly
+```
+
+Pass an optional `.env` file for environment variables (e.g. overriding rate limits):
+
+```bash
+docker run -p 8000:8000 --env-file .env extractly
 ```
 
 ### Endpoints
@@ -135,7 +142,14 @@ La documentación interactiva (Swagger UI) se encuentra en `http://localhost:800
 ### Ejecución con Docker
 
 ```bash
-docker-compose up --build
+docker build -t extractly .
+docker run -p 8000:8000 extractly
+```
+
+Pasa un archivo `.env` opcional para variables de entorno:
+
+```bash
+docker run -p 8000:8000 --env-file .env extractly
 ```
 
 ### Endpoints
@@ -209,7 +223,7 @@ Límite de tasa: **5 solicitudes / minuto** (el renderizado del navegador consum
 
 - [x] Static HTTP scraper (`POST /scrape`) with SSRF protection, rate limiting, and structured Markdown output
 - [x] HTML sanitization (removes scripts, ads, nav, banners, etc.)
-- [x] Docker / docker-compose support
+- [x] Docker support (production-ready Dockerfile with non-root user and HEALTHCHECK)
 - [x] **Playground** dynamic scraper (`POST /playground/scrape`) powered by headless Chromium
 
 ### 🚧 Planned
