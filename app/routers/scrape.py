@@ -17,6 +17,10 @@ logger = logging.getLogger(__name__)
 limiter = Limiter(key_func=get_remote_address)
 router = APIRouter()
 
+# Minimum word count below which a WordPress page is re-fetched with the
+# headless browser (e.g. sites using JavaScript page-builders like Elementor).
+_BROWSER_FALLBACK_MIN_WORDS = 20
+
 
 @router.post("/scrape", response_model=ScrapeResponse, summary="Scrape and clean a web page")
 @limiter.limit("10/minute")
@@ -44,9 +48,21 @@ async def scrape(request: Request, body: ScrapeRequest) -> ScrapeResponse:
     title, description, content_markdown, images, videos, links, word_count = extract(html, url)
     platform_type = detect_platform(html, word_count)
 
-    # ── Step 3: SPA fallback (auto mode only) ─────────────────────────────────
-    if body.render_mode == "auto" and platform_type == "spa":
-        logger.info("SPA detected for %s – retrying with browser rendering", url)
+    # ── Step 3: SPA / low-content-WordPress fallback (auto mode only) ─────────
+    # Trigger browser rendering when:
+    # • A JavaScript SPA shell is detected (thin content + SPA markers), OR
+    # • WordPress is detected but yielded very little readable content – a sign
+    #   the theme relies on a JavaScript page-builder (Elementor, Divi, etc.)
+    #   that renders content client-side.
+    if body.render_mode == "auto" and (
+        platform_type == "spa"
+        or (platform_type == "wordpress" and word_count < _BROWSER_FALLBACK_MIN_WORDS)
+    ):
+        logger.info(
+            "%s detected for %s – retrying with browser rendering",
+            "SPA" if platform_type == "spa" else f"low-content WordPress ({word_count} words)",
+            url,
+        )
         try:
             html = await _fetch_with_browser(url)
             title, description, content_markdown, images, videos, links, word_count = extract(

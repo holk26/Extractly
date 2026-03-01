@@ -60,7 +60,42 @@ _WP_HTML = """
 <body>
   <div class="entry-content">
     <h1>Hello from WordPress</h1>
-    <p>WordPress-powered content goes here.</p>
+    <p>WordPress-powered content goes here. This page has plenty of readable
+    text so that the word count is well above the browser-fallback threshold
+    and auto mode does not need to invoke headless rendering for this page.</p>
+  </div>
+</body>
+</html>
+"""
+
+_WP_LOW_CONTENT_HTML = """
+<!DOCTYPE html>
+<html>
+<head>
+  <title>My WordPress Site</title>
+  <link rel="https://api.w.org/" href="https://example.com/wp-json/">
+</head>
+<body>
+  <div class="entry-content">
+    <!-- content rendered by JavaScript page builder -->
+  </div>
+</body>
+</html>
+"""
+
+_WP_LOW_CONTENT_RENDERED_HTML = """
+<!DOCTYPE html>
+<html>
+<head>
+  <title>My WordPress Site</title>
+  <link rel="https://api.w.org/" href="https://example.com/wp-json/">
+  <meta name="description" content="Expert masonry services.">
+</head>
+<body>
+  <div class="entry-content">
+    <h1>Empire Masonry</h1>
+    <p>Welcome to our masonry company. We provide expert masonry services
+    for commercial and residential projects across the Lower Mainland region.</p>
   </div>
 </body>
 </html>
@@ -201,7 +236,7 @@ class TestScrapeAutoMode:
         assert resp.json()["platform_type"] == "spa"
 
     def test_auto_mode_wordpress_page(self):
-        """WordPress pages in auto mode are served via HTTP (WP API is separate)."""
+        """WordPress pages with sufficient content in auto mode need no browser rendering."""
         with (
             patch("app.routers.scrape.fetch_url", new=AsyncMock(return_value=_WP_HTML)),
             patch(
@@ -211,6 +246,43 @@ class TestScrapeAutoMode:
         ):
             resp = _post(render_mode="auto")
 
+        assert resp.status_code == 200
+        assert resp.json()["platform_type"] == "wordpress"
+
+    def test_auto_mode_low_content_wordpress_triggers_browser_fallback(self):
+        """WordPress page with very little content in auto mode → browser fallback."""
+        with (
+            patch(
+                "app.routers.scrape.fetch_url",
+                new=AsyncMock(return_value=_WP_LOW_CONTENT_HTML),
+            ),
+            patch(
+                "app.routers.scrape.fetch_url_with_browser",
+                new=AsyncMock(return_value=_WP_LOW_CONTENT_RENDERED_HTML),
+            ),
+        ):
+            resp = _post(render_mode="auto")
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "Empire Masonry" in data["content_markdown"]
+        assert data["word_count"] > 0
+
+    def test_auto_mode_low_content_wordpress_browser_failure_fallback(self):
+        """If browser fails for low-content WordPress in auto mode, return the HTTP result."""
+        with (
+            patch(
+                "app.routers.scrape.fetch_url",
+                new=AsyncMock(return_value=_WP_LOW_CONTENT_HTML),
+            ),
+            patch(
+                "app.routers.scrape.fetch_url_with_browser",
+                new=AsyncMock(side_effect=RuntimeError("browser crashed")),
+            ),
+        ):
+            resp = _post(render_mode="auto")
+
+        # Still 200 – HTTP result is returned as fallback
         assert resp.status_code == 200
         assert resp.json()["platform_type"] == "wordpress"
 
