@@ -26,7 +26,16 @@ _REMOVE_TAGS = {
     "canvas",
     # Template elements may contain raw JS template markup
     "template",
+    # Structural navigation / UI elements that never contain main content
+    "nav",
+    "aside",
+    "form",
 }
+
+# Semantic structural tags that are boilerplate only when they are direct
+# children of <body> (site-level header/footer).  The same tag name inside
+# <article> or <main> may legitimately carry the article's own title/meta.
+_BODY_STRUCTURAL_TAGS = {"header", "footer"}
 
 # HTML attributes that contain CSS or JavaScript and should be stripped
 # from every element that survives the tree pruning step.
@@ -136,5 +145,15 @@ def sanitize(html: str) -> BeautifulSoup:
         junk = [attr for attr in tag.attrs if _JUNK_ATTRS.match(attr)]
         for attr in junk:
             del tag[attr]
+
+    # Remove site-level <header> and <footer> tags that are direct children of
+    # <body>.  These are the site chrome (logo, global nav, copyright) and
+    # always boilerplate.  The same elements nested deeper (e.g. inside
+    # <article>) are intentionally kept as they belong to the article itself.
+    body = soup.find("body")
+    if body:
+        for tag_name in _BODY_STRUCTURAL_TAGS:
+            for el in body.find_all(tag_name, recursive=False):
+                el.decompose()
 
     return soup
