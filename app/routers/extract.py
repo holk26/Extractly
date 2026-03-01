@@ -12,9 +12,12 @@ from fastapi.responses import StreamingResponse
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
+from app.models.crawl_response import SiteGlobalContext
 from app.models.extract_request import ExtractRequest
 from app.models.extract_response import ExtractResponse
 from app.models.page import PageModel
+from app.services.deduplicator import remove_boilerplate
+from app.services.normalizer import make_frontmatter
 from app.services.strategy import auto_extract
 
 logger = logging.getLogger(__name__)
@@ -63,7 +66,25 @@ async def extract_site(
         logger.error("Error extracting site %s: %s", url, exc)
         raise HTTPException(status_code=502, detail=str(exc))
 
+    # Apply cross-page boilerplate deduplication
+    contents = [p.content for p in pages]
+    deduped_contents, boilerplate_removed = remove_boilerplate(contents)
+    if boilerplate_removed:
+        updated_pages = []
+        for page, clean_content in zip(pages, deduped_contents):
+            frontmatter = make_frontmatter(
+                page.title, page.meta_description, page.url, page.slug, page.canonical
+            )
+            full_md = f"{frontmatter}\n\n{clean_content}" if clean_content else frontmatter
+            updated_pages.append(
+                page.model_copy(update={"content": clean_content, "content_markdown": full_md})
+            )
+        pages = updated_pages
+
     total_word_count = sum(len(p.content.split()) for p in pages)
+
+    domain = urlparse(url).netloc
+    site_ctx = SiteGlobalContext(domain=domain, boilerplate_removed=boilerplate_removed)
 
     if format == "zip":
         return _build_zip_response(url, strategy, pages)
@@ -74,6 +95,7 @@ async def extract_site(
         pages_found=len(pages),
         pages=pages,
         total_word_count=total_word_count,
+        site_global_context=site_ctx,
     )
 
 
