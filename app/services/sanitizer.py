@@ -41,6 +41,22 @@ _NOISE_KEYWORDS = {
     "newsletter",
     "promo",
     "overlay",
+    # WordPress-specific noise
+    "comment",
+    "widget",
+    "author-info",
+    "author-bio",
+    "author-box",
+    "post-meta",
+    "entry-meta",
+    "wp-block-latest-posts",
+    "wp-block-categories",
+    "wp-block-archives",
+    "wp-block-tag-cloud",
+    "site-branding",
+    "site-footer",
+    "site-header",
+    "search-form",
 }
 
 

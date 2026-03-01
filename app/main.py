@@ -7,6 +7,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
+from app.routers.crawl import router as crawl_router
 from app.routers.playground import router as playground_router
 from app.routers.scrape import limiter, router as scrape_router
 
@@ -49,6 +50,7 @@ async def generic_exception_handler(request: Request, exc: Exception) -> JSONRes
 
 
 app.include_router(scrape_router)
+app.include_router(crawl_router)
 app.include_router(playground_router)
 
 

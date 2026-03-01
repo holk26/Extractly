@@ -33,8 +33,21 @@ def _extract_description(soup: BeautifulSoup) -> str:
 
 
 def _find_main_content(soup: BeautifulSoup) -> BeautifulSoup:
-    """Return the most likely main-content element."""
-    for selector in ("article", "main", '[role="main"]'):
+    """Return the most likely main-content element.
+
+    Checks common semantic selectors first, then WordPress-specific content
+    containers, before falling back to <body>.
+    """
+    for selector in (
+        "article",
+        "main",
+        '[role="main"]',
+        # WordPress-specific content containers
+        ".entry-content",
+        ".post-content",
+        ".page-content",
+        ".wp-block-post-content",
+    ):
         node = soup.select_one(selector)
         if node:
             return node
