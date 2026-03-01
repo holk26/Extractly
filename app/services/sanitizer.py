@@ -1,4 +1,9 @@
+import re
+
 from bs4 import BeautifulSoup, NavigableString, Tag
+
+# Matches WordPress shortcode tags such as [et_pb_section ...] or [/et_pb_section]
+_SHORTCODE_RE = re.compile(r"\[/?[a-z_\-]+(?:\s[^\]]*?)?\]", re.IGNORECASE)
 
 # Tags whose entire subtree should be removed
 _REMOVE_TAGS = {
@@ -71,6 +76,17 @@ def _has_noise_attr(tag: Tag) -> bool:
         attrs_to_check.append(cls.lower())
 
     return any(keyword in attr for attr in attrs_to_check for keyword in _NOISE_KEYWORDS)
+
+
+def strip_shortcodes(html: str) -> str:
+    """Remove WordPress shortcode tags (e.g. ``[et_pb_section ...]``) from ``html``.
+
+    Some page builders (Divi, WPBakery, …) leave shortcode markup in
+    ``content.rendered`` when the REST API bypasses the builder's rendering
+    pipeline.  This function strips those text-level shortcode patterns so
+    they do not pollute the final content.
+    """
+    return _SHORTCODE_RE.sub("", html)
 
 
 def sanitize(html: str) -> BeautifulSoup:
