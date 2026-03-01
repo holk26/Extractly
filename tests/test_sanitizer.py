@@ -1,6 +1,6 @@
 """Tests for sanitizer.strip_shortcodes and sanitize."""
 
-from app.services.sanitizer import strip_shortcodes, sanitize
+from app.services.sanitizer import sanitize, strip_shortcodes
 
 
 class TestStripShortcodes:
@@ -49,3 +49,66 @@ class TestStripShortcodes:
         result = strip_shortcodes("[ET_PB_SECTION]content[/ET_PB_SECTION]")
         assert "ET_PB_SECTION" not in result
         assert "content" in result
+
+
+class TestSanitize:
+    def test_removes_script_tags(self):
+        soup = sanitize("<p>Text</p><script>alert('xss')</script>")
+        assert "alert" not in soup.get_text()
+
+    def test_removes_style_tags(self):
+        soup = sanitize("<style>body { color: red; }</style><p>Text</p>")
+        assert "color" not in soup.get_text()
+
+    def test_removes_svg_tags(self):
+        soup = sanitize("<p>Hello</p><svg><path d='M0 0 L100 100'/></svg>")
+        text = soup.get_text()
+        assert "M0 0" not in text
+        assert "Hello" in text
+
+    def test_removes_canvas_tags(self):
+        soup = sanitize("<p>Content</p><canvas>fallback</canvas>")
+        assert "fallback" not in soup.get_text()
+        assert "Content" in soup.get_text()
+
+    def test_removes_template_tags(self):
+        soup = sanitize("<p>Real</p><template><div>tmpl js code</div></template>")
+        assert "tmpl js code" not in soup.get_text()
+        assert "Real" in soup.get_text()
+
+    def test_removes_html_comments(self):
+        soup = sanitize("<p>Visible</p><!-- hidden comment -->")
+        assert "hidden comment" not in str(soup)
+
+    def test_removes_display_none_elements(self):
+        soup = sanitize('<p>Visible</p><div style="display:none">Hidden</div>')
+        assert "Hidden" not in soup.get_text()
+        assert "Visible" in soup.get_text()
+
+    def test_removes_visibility_hidden_elements(self):
+        soup = sanitize('<span style="visibility: hidden">Ghost</span><p>Real</p>')
+        assert "Ghost" not in soup.get_text()
+        assert "Real" in soup.get_text()
+
+    def test_strips_inline_style_attribute(self):
+        soup = sanitize('<p style="color:red;font-size:14px">Styled text</p>')
+        # The text should survive but the style attribute must be gone
+        assert "Styled text" in soup.get_text()
+        p = soup.find("p")
+        assert p is not None
+        assert p.get("style") is None
+
+    def test_strips_event_handler_attributes(self):
+        soup = sanitize('<a href="/page" onclick="doSomething()">Link</a>')
+        a = soup.find("a")
+        assert a is not None
+        assert a.get("onclick") is None
+        # href should still be present
+        assert a.get("href") == "/page"
+
+    def test_normal_content_preserved(self):
+        html = "<h1>Title</h1><p>Paragraph <strong>bold</strong> text.</p>"
+        soup = sanitize(html)
+        assert "Title" in soup.get_text()
+        assert "Paragraph" in soup.get_text()
+        assert "bold" in soup.get_text()

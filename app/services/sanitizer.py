@@ -1,11 +1,16 @@
 import re
 
-from bs4 import BeautifulSoup, NavigableString, Tag
+from bs4 import BeautifulSoup, Comment, NavigableString, Tag
 
 # Matches WordPress shortcode tags such as [et_pb_section ...] or [/et_pb_section]
 _SHORTCODE_RE = re.compile(r"\[/?[a-z_\-]+(?:\s[^\]]*?)?\]", re.IGNORECASE)
 
-# Tags whose entire subtree should be removed
+# Matches `display:none` or `visibility:hidden` in inline style attributes
+_HIDDEN_STYLE_RE = re.compile(
+    r"(display\s*:\s*none|visibility\s*:\s*hidden)", re.IGNORECASE
+)
+
+# Tags whose entire subtree should be removed (non-content / binary / scripting)
 _REMOVE_TAGS = {
     "script",
     "style",
@@ -16,7 +21,18 @@ _REMOVE_TAGS = {
     "applet",
     "link",
     "meta",
+    # Vector / canvas graphics produce raw coordinate/path noise in plain text
+    "svg",
+    "canvas",
+    # Template elements may contain raw JS template markup
+    "template",
 }
+
+# HTML attributes that contain CSS or JavaScript and should be stripped
+# from every element that survives the tree pruning step.
+_JUNK_ATTRS = re.compile(
+    r"^(style|on\w+)$", re.IGNORECASE
+)
 
 # CSS classes / ids that strongly indicate non-content elements
 _NOISE_KEYWORDS = {
@@ -97,11 +113,26 @@ def sanitize(html: str) -> BeautifulSoup:
     for tag in soup.find_all(_REMOVE_TAGS):
         tag.decompose()
 
+    # Remove HTML comment nodes (may contain debugging info or conditional blocks)
+    for comment in soup.find_all(string=lambda text: isinstance(text, Comment)):
+        comment.extract()
+
     # Remove elements whose class/id indicates noise (nav, ads, tracking, …)
+    # Also remove elements hidden via inline CSS (display:none / visibility:hidden)
     for tag in soup.find_all(True):
         if not isinstance(tag, Tag):
             continue
         if _has_noise_attr(tag):
             tag.decompose()
+            continue
+        inline_style = tag.get("style", "")
+        if inline_style and _HIDDEN_STYLE_RE.search(inline_style):
+            tag.decompose()
+            continue
+        # Strip inline CSS and event-handler attributes so they cannot leak
+        # into the Markdown output or pollute plain-text extraction.
+        junk = [attr for attr in tag.attrs if _JUNK_ATTRS.match(attr)]
+        for attr in junk:
+            del tag[attr]
 
     return soup
