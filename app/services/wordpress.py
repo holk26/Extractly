@@ -11,7 +11,7 @@ from markdownify import markdownify
 from app.models.page import PageModel
 from app.services.fetcher import _validate_url
 from app.services.normalizer import generate_slug, make_frontmatter
-from app.services.sanitizer import sanitize
+from app.services.sanitizer import sanitize, strip_shortcodes
 
 logger = logging.getLogger(__name__)
 
@@ -80,8 +80,13 @@ def _item_to_page(item: dict, base_url: str) -> Optional[PageModel]:
 
         description = BeautifulSoup(raw_excerpt, "lxml").get_text(strip=True) if raw_excerpt else ""
 
-        clean_soup = sanitize(raw_content)
+        clean_soup = sanitize(strip_shortcodes(raw_content))
         content_text = clean_soup.get_text(separator=" ", strip=True)
+
+        # Skip dummy / empty pages that have no meaningful content
+        if not content_text:
+            return None
+
         content_md = markdownify(str(clean_soup), heading_style="ATX").strip()
 
         # Collect images
