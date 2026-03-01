@@ -1,4 +1,5 @@
 import logging
+from urllib.parse import urlparse
 
 import httpx
 from fastapi import APIRouter, HTTPException, Request
@@ -6,8 +7,9 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from app.models.crawl_request import CrawlRequest
-from app.models.crawl_response import CrawlResponse, PageResult
+from app.models.crawl_response import CrawlResponse, PageResult, SiteGlobalContext
 from app.services.crawler import PageData, crawl
+from app.services.deduplicator import remove_boilerplate
 
 logger = logging.getLogger(__name__)
 
@@ -47,24 +49,33 @@ async def crawl_endpoint(request: Request, body: CrawlRequest) -> CrawlResponse:
     pages = []
     total_word_count = 0
 
-    for page in raw_results:
+    # Apply cross-page boilerplate deduplication when multiple pages were crawled
+    contents = [p.content_markdown for p in raw_results]
+    deduped_contents, boilerplate_removed = remove_boilerplate(contents)
+
+    for page, clean_content in zip(raw_results, deduped_contents):
+        wc = len(clean_content.split())
         pages.append(
             PageResult(
                 url=page.url,
                 title=page.title,
                 description=page.description,
-                content_markdown=page.content_markdown,
+                content_markdown=clean_content,
                 images=page.images if body.include_images else [],
                 videos=page.videos,
                 links=page.links if body.include_links else [],
-                word_count=page.word_count,
+                word_count=wc,
             )
         )
-        total_word_count += page.word_count
+        total_word_count += wc
+
+    domain = urlparse(url).netloc
+    site_ctx = SiteGlobalContext(domain=domain, boilerplate_removed=boilerplate_removed)
 
     return CrawlResponse(
         start_url=url,
         pages_crawled=len(pages),
         pages=pages,
         total_word_count=total_word_count,
+        site_global_context=site_ctx,
     )

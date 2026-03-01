@@ -1,6 +1,13 @@
-from typing import List
+from typing import List, Optional
 
 from pydantic import BaseModel
+
+
+class SiteGlobalContext(BaseModel):
+    """Domain-level metadata aggregated across all crawled pages."""
+
+    domain: str
+    boilerplate_removed: bool
 
 
 class PageResult(BaseModel):
@@ -19,3 +26,4 @@ class CrawlResponse(BaseModel):
     pages_crawled: int
     pages: List[PageResult]
     total_word_count: int
+    site_global_context: Optional[SiteGlobalContext] = None

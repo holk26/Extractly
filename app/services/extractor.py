@@ -4,6 +4,7 @@ from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
 from markdownify import markdownify
 
+from app.services.cleaner import clean_markdown
 from app.services.sanitizer import sanitize
 
 
@@ -126,7 +127,9 @@ def extract(html: str, base_url: str) -> Tuple[str, str, str, List[str], List[st
     videos = _extract_videos(main_node, base_url)
     links = _extract_links(main_node, base_url)
 
-    content_markdown = markdownify(str(main_node), heading_style="ATX").strip()
+    content_markdown = clean_markdown(
+        markdownify(str(main_node), heading_style="ATX").strip()
+    )
     word_count = len(content_markdown.split())
 
     return title, description, content_markdown, images, videos, links, word_count
