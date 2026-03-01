@@ -112,3 +112,65 @@ class TestSanitize:
         assert "Title" in soup.get_text()
         assert "Paragraph" in soup.get_text()
         assert "bold" in soup.get_text()
+
+
+class TestSanitizeStructuralNoise:
+    def test_removes_nav_tag(self):
+        soup = sanitize("<nav><a href='/'>Home</a><a href='/about'>About</a></nav><p>Content</p>")
+        assert "Home" not in soup.get_text()
+        assert "Content" in soup.get_text()
+
+    def test_removes_aside_tag(self):
+        soup = sanitize("<p>Main content</p><aside><p>Sidebar widget</p></aside>")
+        assert "Sidebar widget" not in soup.get_text()
+        assert "Main content" in soup.get_text()
+
+    def test_removes_form_tag(self):
+        soup = sanitize("<p>Article text</p><form><input type='text'><button>Submit</button></form>")
+        assert "Submit" not in soup.get_text()
+        assert "Article text" in soup.get_text()
+
+    def test_removes_body_direct_child_header(self):
+        html = "<body><header><a href='/'>Logo</a><nav>Menu</nav></header><main><p>Article</p></main></body>"
+        soup = sanitize(html)
+        assert "Logo" not in soup.get_text()
+        assert "Article" in soup.get_text()
+
+    def test_removes_body_direct_child_footer(self):
+        html = "<body><main><p>Content</p></main><footer><p>Copyright 2024</p></footer></body>"
+        soup = sanitize(html)
+        assert "Copyright 2024" not in soup.get_text()
+        assert "Content" in soup.get_text()
+
+    def test_preserves_article_level_header(self):
+        html = (
+            "<body>"
+            "<header><a href='/'>Site Logo</a></header>"
+            "<main><article>"
+            "<header><h1>Article Title</h1><p>By Author</p></header>"
+            "<p>Article body text.</p>"
+            "</article></main>"
+            "</body>"
+        )
+        soup = sanitize(html)
+        # Site-level header is removed
+        assert "Site Logo" not in soup.get_text()
+        # Article-level header (not a direct body child) is kept
+        assert "Article Title" in soup.get_text()
+        assert "Article body text." in soup.get_text()
+
+    def test_preserves_article_level_footer(self):
+        html = (
+            "<body>"
+            "<main><article>"
+            "<p>Content here.</p>"
+            "<footer><p>Tags: python, scraping</p></footer>"
+            "</article></main>"
+            "<footer><p>Site copyright</p></footer>"
+            "</body>"
+        )
+        soup = sanitize(html)
+        # Article-level footer is kept (inside <article>)
+        assert "Tags: python, scraping" in soup.get_text()
+        # Site-level footer is removed
+        assert "Site copyright" not in soup.get_text()

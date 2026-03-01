@@ -122,7 +122,7 @@ def _item_to_page(item: dict, base_url: str) -> Optional[PageModel]:
             slug=slug,
             title=title,
             meta_description=description,
-            content=content_text,
+            content=content_md,
             content_markdown=full_markdown,
             images=images,
             internal_links=internal_links,
