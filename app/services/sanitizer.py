@@ -122,6 +122,8 @@ def sanitize(html: str) -> BeautifulSoup:
     for tag in soup.find_all(True):
         if not isinstance(tag, Tag):
             continue
+        if tag.attrs is None:
+            continue
         if _has_noise_attr(tag):
             tag.decompose()
             continue
