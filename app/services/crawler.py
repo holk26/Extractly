@@ -3,7 +3,7 @@
 import logging
 from collections import deque
 from typing import List, NamedTuple
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 import httpx
 
@@ -14,6 +14,27 @@ logger = logging.getLogger(__name__)
 
 # Hard ceiling to protect against runaway crawls
 MAX_PAGES_HARD_LIMIT = 50
+
+# URL path prefixes to skip (common on WordPress and other CMSes)
+_SKIP_PATH_PREFIXES = (
+    "/wp-admin",
+    "/wp-login",
+    "/wp-json",
+    "/wp-content",
+)
+
+_SKIP_PATH_SUFFIXES = (
+    ".xml",
+    ".rss",
+    ".atom",
+    "xmlrpc.php",
+    "/feed",
+)
+# Pre-computed stripped versions to avoid repeated string operations at call time
+_SKIP_PATH_SUFFIXES_STRIPPED = tuple(s.rstrip("/") for s in _SKIP_PATH_SUFFIXES)
+
+# Query parameters that indicate non-content pages
+_SKIP_QUERY_PARAMS = {"feed", "preview", "replytocom"}
 
 
 class PageData(NamedTuple):
@@ -37,6 +58,28 @@ def _same_domain(url: str, base_netloc: str) -> bool:
     return urlparse(url).netloc == base_netloc
 
 
+def _should_skip(url: str) -> bool:
+    """Return True for URLs that are unlikely to contain useful page content.
+
+    Skips WordPress admin/login/API paths, feed URLs, and static asset paths.
+    """
+    parsed = urlparse(url)
+    path = parsed.path.lower()
+
+    if any(path.startswith(prefix) for prefix in _SKIP_PATH_PREFIXES):
+        return True
+    path_stripped = path.rstrip("/")
+    if any(path_stripped.endswith(suffix) for suffix in _SKIP_PATH_SUFFIXES_STRIPPED):
+        return True
+
+    # Skip if any noise query param is present
+    query_params = set(parse_qs(parsed.query).keys())
+    if query_params & _SKIP_QUERY_PARAMS:
+        return True
+
+    return False
+
+
 async def crawl(
     start_url: str,
     max_pages: int = 10,
@@ -47,6 +90,9 @@ async def crawl(
     The crawl is bounded by *max_pages* (total pages visited) and *max_depth*
     (link depth from the seed URL).  Both values are capped by
     ``MAX_PAGES_HARD_LIMIT`` / a depth ceiling of 5 to prevent abuse.
+
+    WordPress admin, login, JSON API, feed, and preview URLs are automatically
+    skipped to focus on content pages.
 
     Returns:
         A list of :class:`PageData` named-tuples, one per successfully fetched page.
@@ -66,6 +112,10 @@ async def crawl(
         if normalised in visited:
             continue
         visited.add(normalised)
+
+        if _should_skip(normalised):
+            logger.debug("Crawler: skipping non-content URL %s", normalised)
+            continue
 
         try:
             html = await fetch_url(normalised)
