@@ -115,6 +115,51 @@ Rate limit: **5 requests / minute** (browser rendering is resource-intensive).
 
 ---
 
+#### `POST /api/extract-site` – Full site extraction
+
+Crawls and extracts all internal pages (same domain) starting from a seed URL.
+Uses **Playwright** to render JavaScript content and automatically scrolls pages
+to trigger lazy loading before extraction. Returns clean Markdown for each page.
+
+**Request body**
+
+```json
+{
+  "url": "https://example.com",
+  "max_pages": 5
+}
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `url` | `string` | *required* | Starting URL to crawl from |
+| `max_pages` | `int` | `5` | Maximum pages to extract (1–50) |
+
+**Response**
+
+```json
+{
+  "start_url": "https://example.com",
+  "pages_extracted": 3,
+  "pages": [
+    {
+      "url": "https://example.com",
+      "title": "Home Page",
+      "content_markdown": "# Home\n\nWelcome..."
+    },
+    {
+      "url": "https://example.com/about",
+      "title": "About Us",
+      "content_markdown": "# About\n\nWe are..."
+    }
+  ]
+}
+```
+
+Rate limit: **3 requests / minute** (browser rendering + crawling is resource-intensive).
+
+---
+
 ## Documentación en Español
 
 ### Requisitos
@@ -217,6 +262,51 @@ Límite de tasa: **5 solicitudes / minuto** (el renderizado del navegador consum
 
 ---
 
+#### `POST /api/extract-site` – Extracción completa del sitio
+
+Rastrea y extrae todas las páginas internas (mismo dominio) comenzando desde una URL semilla.
+Utiliza **Playwright** para renderizar contenido JavaScript y desplaza automáticamente las páginas
+para activar la carga diferida antes de la extracción. Devuelve Markdown limpio para cada página.
+
+**Cuerpo de la solicitud**
+
+```json
+{
+  "url": "https://ejemplo.com",
+  "max_pages": 5
+}
+```
+
+| Campo | Tipo | Por defecto | Descripción |
+|---|---|---|---|
+| `url` | `string` | *requerido* | URL inicial desde donde rastrear |
+| `max_pages` | `int` | `5` | Máximo de páginas a extraer (1–50) |
+
+**Respuesta**
+
+```json
+{
+  "start_url": "https://ejemplo.com",
+  "pages_extracted": 3,
+  "pages": [
+    {
+      "url": "https://ejemplo.com",
+      "title": "Página Principal",
+      "content_markdown": "# Inicio\n\nBienvenido..."
+    },
+    {
+      "url": "https://ejemplo.com/acerca",
+      "title": "Acerca de Nosotros",
+      "content_markdown": "# Acerca\n\nSomos..."
+    }
+  ]
+}
+```
+
+Límite de tasa: **3 solicitudes / minuto** (el renderizado del navegador + rastreo consume más recursos).
+
+---
+
 ## Roadmap
 
 ### ✅ Done
@@ -225,6 +315,7 @@ Límite de tasa: **5 solicitudes / minuto** (el renderizado del navegador consum
 - [x] HTML sanitization (removes scripts, ads, nav, banners, etc.)
 - [x] Docker support (production-ready Dockerfile with non-root user and HEALTHCHECK)
 - [x] **Playground** dynamic scraper (`POST /playground/scrape`) powered by headless Chromium
+- [x] **Full site extraction** (`POST /api/extract-site`) with Playwright, auto-scroll for lazy loading, and same-domain crawling
 
 ### 🚧 Planned
 
