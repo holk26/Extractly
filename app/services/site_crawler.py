@@ -178,6 +178,14 @@ def _find_main_content(soup: BeautifulSoup) -> BeautifulSoup:
         ".post-content",
         ".page-content",
         ".wp-block-post-content",
+        # Elementor page builder
+        ".elementor-section-wrap",
+        # Divi page builder
+        ".et_pb_section",
+        # WPBakery / Visual Composer
+        ".vc_row",
+        # Beaver Builder
+        ".fl-row-content",
     ):
         node = soup.select_one(selector)
         if node:

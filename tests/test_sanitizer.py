@@ -174,3 +174,57 @@ class TestSanitizeStructuralNoise:
         assert "Tags: python, scraping" in soup.get_text()
         # Site-level footer is removed
         assert "Site copyright" not in soup.get_text()
+
+
+class TestSanitizePageBuilderContent:
+    """Ensure content from JS page builders (Elementor, Divi, etc.) is preserved."""
+
+    def test_preserves_elementor_widget_container_content(self):
+        """Elementor wraps content in elementor-widget-container — must not be stripped."""
+        html = (
+            "<div class='elementor-widget-wrap'>"
+            "<div class='elementor-widget-container'>"
+            "<p>Our services include parking management.</p>"
+            "</div>"
+            "</div>"
+        )
+        soup = sanitize(html)
+        assert "Our services include parking management." in soup.get_text()
+
+    def test_preserves_elementor_text_editor_content(self):
+        """Elementor text-editor widget must survive sanitization."""
+        html = (
+            "<div class='elementor-widget-text-editor elementor-widget'>"
+            "<div class='elementor-widget-container'>"
+            "<p>Company overview text.</p>"
+            "</div>"
+            "</div>"
+        )
+        soup = sanitize(html)
+        assert "Company overview text." in soup.get_text()
+
+    def test_preserves_elementor_heading_widget(self):
+        """Elementor heading widget must survive sanitization."""
+        html = (
+            "<div class='elementor-widget-heading elementor-widget'>"
+            "<div class='elementor-widget-container'>"
+            "<h2 class='elementor-heading-title'>About Us</h2>"
+            "</div>"
+            "</div>"
+        )
+        soup = sanitize(html)
+        assert "About Us" in soup.get_text()
+
+    def test_sidebar_widget_area_still_removed(self):
+        """WordPress sidebar widget areas (class=sidebar) remain filtered."""
+        html = (
+            "<body>"
+            "<main><p>Main content</p></main>"
+            "<div class='sidebar'>"
+            "<div class='widget widget_recent_posts'><p>Recent post</p></div>"
+            "</div>"
+            "</body>"
+        )
+        soup = sanitize(html)
+        assert "Main content" in soup.get_text()
+        assert "Recent post" not in soup.get_text()

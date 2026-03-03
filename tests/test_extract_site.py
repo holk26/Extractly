@@ -352,3 +352,67 @@ class TestFetchWithBrowserResilience:
         # The first positional arg after URL should be wait_until='load'
         _, kwargs = mock_page.goto.call_args
         assert kwargs.get("wait_until") == "load"
+
+
+# ---------------------------------------------------------------------------
+# Tests for content extraction from JS page builders (Elementor, Divi, etc.)
+# ---------------------------------------------------------------------------
+
+class TestFindMainContent:
+    """Tests for _find_main_content fallback selectors for page-builder sites."""
+
+    def _run(self, html: str):
+        """Parse html, sanitize, run _find_main_content, return markdown."""
+        from bs4 import BeautifulSoup
+        from markdownify import markdownify
+
+        from app.services.sanitizer import sanitize
+        from app.services.site_crawler import _find_main_content
+
+        clean_soup = sanitize(html)
+        node = _find_main_content(clean_soup)
+        return markdownify(str(node), heading_style="ATX").strip()
+
+    def test_elementor_section_wrap_content_is_extracted(self):
+        """_find_main_content falls back to .elementor-section-wrap for Elementor pages."""
+        html = """
+        <html><body>
+          <div class="elementor-section-wrap">
+            <section class="elementor-section">
+              <div class="elementor-widget-container">
+                <p>Parking management services.</p>
+              </div>
+            </section>
+          </div>
+        </body></html>
+        """
+        md = self._run(html)
+        assert "Parking management services" in md
+
+    def test_entry_content_takes_priority_over_elementor(self):
+        """When .entry-content exists, it is preferred over .elementor-section-wrap."""
+        html = """
+        <html><body>
+          <div class="entry-content">
+            <p>Article body.</p>
+            <div class="elementor-section-wrap">
+              <div class="elementor-widget-container"><p>Widget text.</p></div>
+            </div>
+          </div>
+        </body></html>
+        """
+        md = self._run(html)
+        assert "Article body" in md
+
+    def test_article_takes_priority_over_elementor(self):
+        """When <article> exists, it is preferred over .elementor-section-wrap."""
+        html = """
+        <html><body>
+          <article><p>Article content here.</p></article>
+          <div class="elementor-section-wrap">
+            <div class="elementor-widget-container"><p>Builder content.</p></div>
+          </div>
+        </body></html>
+        """
+        md = self._run(html)
+        assert "Article content here" in md

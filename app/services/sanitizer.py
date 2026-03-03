@@ -73,7 +73,6 @@ _NOISE_KEYWORDS = {
     "overlay",
     # WordPress-specific noise
     "comment",
-    "widget",
     "author-info",
     "author-bio",
     "author-box",
