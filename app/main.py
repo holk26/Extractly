@@ -10,6 +10,7 @@ from slowapi.util import get_remote_address
 from app.routers.crawl import router as crawl_router
 from app.routers.extract import router as extract_router
 from app.routers.extract_site import router as extract_site_router
+from app.routers.health import router as health_router
 from app.routers.playground import router as playground_router
 from app.routers.scrape import limiter, router as scrape_router
 
@@ -56,8 +57,9 @@ app.include_router(crawl_router)
 app.include_router(extract_router)
 app.include_router(extract_site_router)
 app.include_router(playground_router)
+app.include_router(health_router)
 
 
-@app.get("/", summary="Health check")
+@app.get("/", summary="API root")
 async def root() -> dict:
     return {"message": "Hello from Extractly"}
