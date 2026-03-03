@@ -416,3 +416,27 @@ class TestFindMainContent:
         """
         md = self._run(html)
         assert "Article content here" in md
+
+
+# ---------------------------------------------------------------------------
+# Tests for URL normalisation (deduplication)
+# ---------------------------------------------------------------------------
+
+class TestNormaliseUrl:
+    """Tests for _normalise deduplication — root with and without trailing slash."""
+
+    def test_root_with_slash_equals_root_without_slash(self):
+        """https://example.com/ and https://example.com must normalise to the same URL."""
+        from app.services.site_crawler import _normalise
+        assert _normalise("https://example.com/") == _normalise("https://example.com")
+
+    def test_path_trailing_slash_unchanged(self):
+        """Paths other than root are kept as-is to avoid normalisation side-effects."""
+        from app.services.site_crawler import _normalise
+        assert _normalise("https://example.com/page/") == "https://example.com/page/"
+
+    def test_fragment_stripped(self):
+        """URL fragments are still stripped."""
+        from app.services.site_crawler import _normalise
+        assert _normalise("https://example.com/#section") == "https://example.com/"
+        assert _normalise("https://example.com/page#top") == "https://example.com/page"

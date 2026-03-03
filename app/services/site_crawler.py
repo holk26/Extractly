@@ -100,8 +100,13 @@ def _validate_url(url: str) -> None:
 
 
 def _normalise(url: str) -> str:
-    """Strip URL fragment so http://x.com/page#sec and http://x.com/page are the same."""
-    return urlparse(url)._replace(fragment="").geturl()
+    """Strip URL fragment and normalise the root path so that
+    http://x.com/ and http://x.com are treated as the same URL."""
+    parsed = urlparse(url)._replace(fragment="")
+    # Treat empty path and "/" as equivalent (avoids crawling the home page twice)
+    if parsed.path == "":
+        parsed = parsed._replace(path="/")
+    return parsed.geturl()
 
 
 def _same_domain(url: str, base_netloc: str) -> bool:
