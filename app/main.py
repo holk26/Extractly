@@ -2,6 +2,7 @@ import logging
 import logging.config
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -44,6 +45,19 @@ app = FastAPI(
 # Rate-limiting state
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# CORS – allow moonsbow.com and every subdomain (e.g. panel.app.moonsbow.com)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://moonsbow.com",
+        "https://www.moonsbow.com",
+    ],
+    allow_origin_regex=r"https://.*\.moonsbow\.com$",
+    allow_credentials=True,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "Authorization", "Accept"],
+)
 
 
 @app.exception_handler(Exception)
