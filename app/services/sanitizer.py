@@ -37,6 +37,12 @@ _REMOVE_TAGS = {
 # <article> or <main> may legitimately carry the article's own title/meta.
 _BODY_STRUCTURAL_TAGS = {"header", "footer"}
 
+# Essential structural elements that must never be removed by the noise filter.
+# WordPress themes add classes like `has-header-image` or `overlay-header` to
+# <body>, which would otherwise match the "header" noise keyword and decompose
+# the entire body element, leaving only the <title> text.
+_NEVER_STRIP_TAGS = frozenset({"html", "body", "main", "article"})
+
 # HTML attributes that contain CSS or JavaScript and should be stripped
 # from every element that survives the tree pruning step.
 _JUNK_ATTRS = re.compile(
@@ -73,7 +79,6 @@ _NOISE_KEYWORDS = {
     "overlay",
     # WordPress-specific noise
     "comment",
-    "widget",
     "author-info",
     "author-bio",
     "author-box",
@@ -132,6 +137,11 @@ def sanitize(html: str) -> BeautifulSoup:
         if not isinstance(tag, Tag):
             continue
         if tag.attrs is None:
+            continue
+        # Never strip essential structural containers — WordPress themes add
+        # classes like `has-header-image` to <body> which would otherwise
+        # match the "header" noise keyword and decompose the entire body.
+        if tag.name in _NEVER_STRIP_TAGS:
             continue
         if _has_noise_attr(tag):
             tag.decompose()

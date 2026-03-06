@@ -6,11 +6,13 @@ These tests verify:
 - max_pages limit enforcement
 - Link discovery and same-domain filtering
 - Error handling (invalid URLs, browser failures)
+- Resilience to networkidle timeouts (sites with persistent connections)
 
 External calls and Playwright are mocked to run tests without internet access.
 """
 
-from unittest.mock import AsyncMock, patch
+import asyncio
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -267,3 +269,174 @@ class TestExtractSiteResponseSchema:
         assert "url" in page
         assert "title" in page
         assert "content_markdown" in page
+
+
+# ---------------------------------------------------------------------------
+# Resilience tests for _fetch_with_browser (networkidle timeout fallback)
+# ---------------------------------------------------------------------------
+
+class TestFetchWithBrowserResilience:
+    """Tests that _fetch_with_browser falls back gracefully on networkidle timeouts.
+
+    Sites with persistent network connections (analytics, chat widgets, etc.) never
+    reach 'networkidle' state. Previously the function used wait_until='networkidle'
+    which caused a timeout on such sites.  The fix uses wait_until='load' for the
+    initial navigation and wraps the post-scroll networkidle wait in a try/except
+    so content is always returned even when networkidle never fires.
+    """
+
+    @pytest.mark.asyncio
+    async def test_networkidle_timeout_still_returns_html(self):
+        """If networkidle times out after scrolling, page content is still returned."""
+        from playwright.async_api import TimeoutError as PlaywrightTimeoutError
+
+        from app.services.site_crawler import _fetch_with_browser
+
+        sample_html = "<html><body><h1>Hello</h1></body></html>"
+
+        # Build a minimal Playwright page mock that raises PlaywrightTimeoutError
+        # on wait_for_load_state to simulate a persistent-connection site.
+        mock_page = AsyncMock()
+        mock_page.goto = AsyncMock()
+        mock_page.evaluate = AsyncMock()
+        mock_page.content = AsyncMock(return_value=sample_html)
+        mock_page.wait_for_load_state = AsyncMock(
+            side_effect=PlaywrightTimeoutError("Timeout waiting for networkidle")
+        )
+
+        mock_context = AsyncMock()
+        mock_context.new_page = AsyncMock(return_value=mock_page)
+        mock_context.__aenter__ = AsyncMock(return_value=mock_context)
+        mock_context.__aexit__ = AsyncMock(return_value=False)
+
+        mock_browser = AsyncMock()
+        mock_browser.new_context = AsyncMock(return_value=mock_context)
+
+        mock_pw = MagicMock()
+        mock_pw.__aenter__ = AsyncMock(return_value=mock_pw)
+        mock_pw.__aexit__ = AsyncMock(return_value=False)
+        mock_pw.chromium.launch = AsyncMock(return_value=mock_browser)
+
+        with patch("app.services.site_crawler.async_playwright", return_value=mock_pw):
+            html = await _fetch_with_browser("https://example.com")
+
+        assert html == sample_html
+
+    @pytest.mark.asyncio
+    async def test_goto_uses_load_not_networkidle(self):
+        """page.goto must use wait_until='load' so sites with background traffic load."""
+        from app.services.site_crawler import _fetch_with_browser
+
+        mock_page = AsyncMock()
+        mock_page.goto = AsyncMock()
+        mock_page.evaluate = AsyncMock()
+        mock_page.content = AsyncMock(return_value="<html><body></body></html>")
+        mock_page.wait_for_load_state = AsyncMock()
+
+        mock_context = AsyncMock()
+        mock_context.new_page = AsyncMock(return_value=mock_page)
+        mock_context.__aenter__ = AsyncMock(return_value=mock_context)
+        mock_context.__aexit__ = AsyncMock(return_value=False)
+
+        mock_browser = AsyncMock()
+        mock_browser.new_context = AsyncMock(return_value=mock_context)
+
+        mock_pw = MagicMock()
+        mock_pw.__aenter__ = AsyncMock(return_value=mock_pw)
+        mock_pw.__aexit__ = AsyncMock(return_value=False)
+        mock_pw.chromium.launch = AsyncMock(return_value=mock_browser)
+
+        with patch("app.services.site_crawler.async_playwright", return_value=mock_pw):
+            await _fetch_with_browser("https://example.com")
+
+        # The first positional arg after URL should be wait_until='load'
+        _, kwargs = mock_page.goto.call_args
+        assert kwargs.get("wait_until") == "load"
+
+
+# ---------------------------------------------------------------------------
+# Tests for content extraction from JS page builders (Elementor, Divi, etc.)
+# ---------------------------------------------------------------------------
+
+class TestFindMainContent:
+    """Tests for _find_main_content fallback selectors for page-builder sites."""
+
+    def _run(self, html: str):
+        """Parse html, sanitize, run _find_main_content, return markdown."""
+        from bs4 import BeautifulSoup
+        from markdownify import markdownify
+
+        from app.services.sanitizer import sanitize
+        from app.services.site_crawler import _find_main_content
+
+        clean_soup = sanitize(html)
+        node = _find_main_content(clean_soup)
+        return markdownify(str(node), heading_style="ATX").strip()
+
+    def test_elementor_section_wrap_content_is_extracted(self):
+        """_find_main_content falls back to .elementor-section-wrap for Elementor pages."""
+        html = """
+        <html><body>
+          <div class="elementor-section-wrap">
+            <section class="elementor-section">
+              <div class="elementor-widget-container">
+                <p>Parking management services.</p>
+              </div>
+            </section>
+          </div>
+        </body></html>
+        """
+        md = self._run(html)
+        assert "Parking management services" in md
+
+    def test_entry_content_takes_priority_over_elementor(self):
+        """When .entry-content exists, it is preferred over .elementor-section-wrap."""
+        html = """
+        <html><body>
+          <div class="entry-content">
+            <p>Article body.</p>
+            <div class="elementor-section-wrap">
+              <div class="elementor-widget-container"><p>Widget text.</p></div>
+            </div>
+          </div>
+        </body></html>
+        """
+        md = self._run(html)
+        assert "Article body" in md
+
+    def test_article_takes_priority_over_elementor(self):
+        """When <article> exists, it is preferred over .elementor-section-wrap."""
+        html = """
+        <html><body>
+          <article><p>Article content here.</p></article>
+          <div class="elementor-section-wrap">
+            <div class="elementor-widget-container"><p>Builder content.</p></div>
+          </div>
+        </body></html>
+        """
+        md = self._run(html)
+        assert "Article content here" in md
+
+
+# ---------------------------------------------------------------------------
+# Tests for URL normalisation (deduplication)
+# ---------------------------------------------------------------------------
+
+class TestNormaliseUrl:
+    """Tests for _normalise deduplication — root with and without trailing slash."""
+
+    def test_root_with_slash_equals_root_without_slash(self):
+        """https://example.com/ and https://example.com must normalise to the same URL."""
+        from app.services.site_crawler import _normalise
+        assert _normalise("https://example.com/") == _normalise("https://example.com")
+
+    def test_path_trailing_slash_unchanged(self):
+        """Paths other than root are kept as-is to avoid normalisation side-effects."""
+        from app.services.site_crawler import _normalise
+        assert _normalise("https://example.com/page/") == "https://example.com/page/"
+
+    def test_fragment_stripped(self):
+        """URL fragments are still stripped."""
+        from app.services.site_crawler import _normalise
+        assert _normalise("https://example.com/#section") == "https://example.com/"
+        assert _normalise("https://example.com/page#top") == "https://example.com/page"

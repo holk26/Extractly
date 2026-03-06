@@ -16,6 +16,7 @@ from urllib.parse import parse_qs, urljoin, urlparse
 
 from bs4 import BeautifulSoup
 from markdownify import markdownify
+from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 from playwright.async_api import async_playwright
 
 from app.services.sanitizer import sanitize
@@ -25,6 +26,7 @@ logger = logging.getLogger(__name__)
 # Hard ceiling to protect against runaway crawls
 MAX_PAGES_HARD_LIMIT = 50
 TIMEOUT_MS = 30_000  # 30 seconds
+NETWORKIDLE_TIMEOUT_MS = 5_000  # 5 seconds — short grace period after scrolling
 ALLOWED_SCHEMES = {"http", "https"}
 
 # URL path prefixes to skip (common on WordPress and other CMSes)
@@ -98,8 +100,13 @@ def _validate_url(url: str) -> None:
 
 
 def _normalise(url: str) -> str:
-    """Strip URL fragment so http://x.com/page#sec and http://x.com/page are the same."""
-    return urlparse(url)._replace(fragment="").geturl()
+    """Strip URL fragment and normalise the root path so that
+    http://x.com/ and http://x.com are treated as the same URL."""
+    parsed = urlparse(url)._replace(fragment="")
+    # Treat empty path and "/" as equivalent (avoids crawling the home page twice)
+    if parsed.path == "":
+        parsed = parsed._replace(path="/")
+    return parsed.geturl()
 
 
 def _same_domain(url: str, base_netloc: str) -> bool:
@@ -176,6 +183,14 @@ def _find_main_content(soup: BeautifulSoup) -> BeautifulSoup:
         ".post-content",
         ".page-content",
         ".wp-block-post-content",
+        # Elementor page builder
+        ".elementor-section-wrap",
+        # Divi page builder
+        ".et_pb_section",
+        # WPBakery / Visual Composer
+        ".vc_row",
+        # Beaver Builder
+        ".fl-row-content",
     ):
         node = soup.select_one(selector)
         if node:
@@ -198,7 +213,7 @@ async def _fetch_with_browser(url: str) -> str:
         page = await context.new_page()
 
         try:
-            await page.goto(url, wait_until="networkidle", timeout=TIMEOUT_MS)
+            await page.goto(url, wait_until="load", timeout=TIMEOUT_MS)
 
             # Auto-scroll to trigger lazy loading
             await page.evaluate("""
@@ -206,12 +221,15 @@ async def _fetch_with_browser(url: str) -> str:
                     await new Promise((resolve) => {
                         let totalHeight = 0;
                         const distance = 100;
+                        let scrollAttempts = 0;
+                        const maxScrollAttempts = 300;
                         const timer = setInterval(() => {
                             const scrollHeight = document.body.scrollHeight;
                             window.scrollBy(0, distance);
                             totalHeight += distance;
+                            scrollAttempts += 1;
 
-                            if (totalHeight >= scrollHeight) {
+                            if (totalHeight >= scrollHeight || scrollAttempts >= maxScrollAttempts) {
                                 clearInterval(timer);
                                 resolve();
                             }
@@ -220,8 +238,13 @@ async def _fetch_with_browser(url: str) -> str:
                 }
             """)
 
-            # Wait for network to be idle after scrolling
-            await page.wait_for_load_state("networkidle")
+            # Wait for network to settle after scrolling; ignore timeout so that
+            # sites with persistent connections (analytics, chat widgets, etc.)
+            # still return content instead of raising an error.
+            try:
+                await page.wait_for_load_state("networkidle", timeout=NETWORKIDLE_TIMEOUT_MS)
+            except PlaywrightTimeoutError:
+                pass
 
             html = await page.content()
         finally:

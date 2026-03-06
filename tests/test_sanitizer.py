@@ -174,3 +174,169 @@ class TestSanitizeStructuralNoise:
         assert "Tags: python, scraping" in soup.get_text()
         # Site-level footer is removed
         assert "Site copyright" not in soup.get_text()
+
+
+class TestSanitizePageBuilderContent:
+    """Ensure content from JS page builders (Elementor, Divi, etc.) is preserved."""
+
+    def test_preserves_elementor_widget_container_content(self):
+        """Elementor wraps content in elementor-widget-container — must not be stripped."""
+        html = (
+            "<div class='elementor-widget-wrap'>"
+            "<div class='elementor-widget-container'>"
+            "<p>Our services include parking management.</p>"
+            "</div>"
+            "</div>"
+        )
+        soup = sanitize(html)
+        assert "Our services include parking management." in soup.get_text()
+
+    def test_preserves_elementor_text_editor_content(self):
+        """Elementor text-editor widget must survive sanitization."""
+        html = (
+            "<div class='elementor-widget-text-editor elementor-widget'>"
+            "<div class='elementor-widget-container'>"
+            "<p>Company overview text.</p>"
+            "</div>"
+            "</div>"
+        )
+        soup = sanitize(html)
+        assert "Company overview text." in soup.get_text()
+
+    def test_preserves_elementor_heading_widget(self):
+        """Elementor heading widget must survive sanitization."""
+        html = (
+            "<div class='elementor-widget-heading elementor-widget'>"
+            "<div class='elementor-widget-container'>"
+            "<h2 class='elementor-heading-title'>About Us</h2>"
+            "</div>"
+            "</div>"
+        )
+        soup = sanitize(html)
+        assert "About Us" in soup.get_text()
+
+    def test_sidebar_widget_area_still_removed(self):
+        """WordPress sidebar widget areas (class=sidebar) remain filtered."""
+        html = (
+            "<body>"
+            "<main><p>Main content</p></main>"
+            "<div class='sidebar'>"
+            "<div class='widget widget_recent_posts'><p>Recent post</p></div>"
+            "</div>"
+            "</body>"
+        )
+        soup = sanitize(html)
+        assert "Main content" in soup.get_text()
+        assert "Recent post" not in soup.get_text()
+
+
+class TestSanitizeStructuralTagProtection:
+    """Ensure structural HTML elements are never stripped by the noise filter.
+
+    WordPress themes add classes like `has-header-image` or `overlay-header`
+    to the `<body>` tag.  The substring "header" matched the noise keyword and
+    caused the entire body to be decomposed, leaving only the `<title>` text
+    in the output.  `html`, `body`, `main`, and `article` must always
+    survive regardless of their class/id attributes.
+    """
+
+    def test_body_with_has_header_image_class_preserved(self):
+        """<body class='has-header-image'> must NOT be stripped despite matching 'header'."""
+        html = (
+            "<body class='page elementor-default has-header-image'>"
+            "<main><p>Page content here.</p></main>"
+            "</body>"
+        )
+        soup = sanitize(html)
+        assert soup.find("body") is not None
+        assert "Page content here." in soup.get_text()
+
+    def test_body_with_overlay_header_class_preserved(self):
+        """<body class='overlay-header'> must NOT be stripped."""
+        html = (
+            "<body class='page overlay-header'>"
+            "<main><p>Article text.</p></main>"
+            "</body>"
+        )
+        soup = sanitize(html)
+        assert soup.find("body") is not None
+        assert "Article text." in soup.get_text()
+
+    def test_body_with_has_footer_image_class_preserved(self):
+        """<body class='has-footer-image'> must NOT be stripped."""
+        html = (
+            "<body class='page has-footer-image'>"
+            "<main><p>Body content.</p></main>"
+            "</body>"
+        )
+        soup = sanitize(html)
+        assert soup.find("body") is not None
+        assert "Body content." in soup.get_text()
+
+    def test_main_with_noise_class_preserved(self):
+        """<main class='site-main has-navigation-overlay'> must NOT be stripped."""
+        html = (
+            "<body>"
+            "<main class='site-main has-navigation-overlay'>"
+            "<p>Main content.</p>"
+            "</main>"
+            "</body>"
+        )
+        soup = sanitize(html)
+        assert soup.find("main") is not None
+        assert "Main content." in soup.get_text()
+
+    def test_article_with_noise_class_preserved(self):
+        """<article class='hentry post-navigation'> must NOT be stripped."""
+        html = (
+            "<body>"
+            "<article class='hentry post-navigation'>"
+            "<p>Article content.</p>"
+            "</article>"
+            "</body>"
+        )
+        soup = sanitize(html)
+        assert soup.find("article") is not None
+        assert "Article content." in soup.get_text()
+
+    def test_no_title_only_output_when_body_has_header_class(self):
+        """Full Elementor page with has-header-image body: content not reduced to title."""
+        html = """<!DOCTYPE html>
+<html>
+<head><title>Total Space Incorporation – Effective Usage of Any Space</title></head>
+<body class="page page-id-10 elementor-default has-header-image">
+  <header id="masthead" class="site-header">
+    <p class="site-description">Effective Usage of Any Space</p>
+  </header>
+  <main id="main" class="site-main" role="main">
+    <article>
+      <div class="entry-content">
+        <div class="elementor elementor-10">
+          <section class="elementor-section elementor-top-section">
+            <div class="elementor-widget-wrap elementor-element-populated">
+              <div class="elementor-widget elementor-widget-heading">
+                <div class="elementor-widget-container">
+                  <h1>RETHINK SPACE</h1>
+                  <p>Parking, pool, and green space management.</p>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </article>
+  </main>
+  <footer id="colophon" class="site-footer"><p>Copyright</p></footer>
+</body>
+</html>"""
+        from markdownify import markdownify
+        from app.services.site_crawler import _find_main_content
+
+        clean_soup = sanitize(html)
+        node = _find_main_content(clean_soup)
+        md = markdownify(str(node), heading_style="ATX").strip()
+
+        assert "RETHINK SPACE" in md
+        assert "Parking, pool, and green space management." in md
+        # Must NOT be reduced to just the page title
+        assert md != "Total Space Incorporation – Effective Usage of Any Space"
