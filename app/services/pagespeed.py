@@ -57,9 +57,18 @@ async def fetch_pagespeed(
     if not url:
         raise ValueError("url must not be empty")
 
-    params: dict[str, str] = {"url": url, "strategy": strategy}
+    # The API only returns categories that are explicitly requested.
+    # Without specifying all four, seo/accessibility/best-practices come back empty.
+    params: list[tuple[str, str]] = [
+        ("url", url),
+        ("strategy", strategy),
+        ("category", "performance"),
+        ("category", "seo"),
+        ("category", "accessibility"),
+        ("category", "best-practices"),
+    ]
     if _API_KEY:
-        params["key"] = _API_KEY
+        params.append(("key", _API_KEY))
 
     logger.info("PageSpeed request", extra={"url": url, "strategy": strategy})
 
