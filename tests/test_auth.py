@@ -114,7 +114,7 @@ class TestInvalidToken:
             resp = client.get(
                 "/performance",
                 params={"url": "https://example.com"},
-                headers={"Authorization": "invalid_token"},
+                headers={"Authorization": "Bearer invalid_token"},
             )
         assert resp.status_code == 401
 
@@ -125,7 +125,7 @@ class TestInvalidToken:
             resp = client.get(
                 "/performance",
                 params={"url": "https://example.com"},
-                headers={"Authorization": "some_token"},
+                headers={"Authorization": "Bearer some_token"},
             )
         assert resp.status_code == 401
 
@@ -141,7 +141,7 @@ class TestInvalidToken:
             resp = client.get(
                 "/performance",
                 params={"url": "https://example.com"},
-                headers={"Authorization": "some_token"},
+                headers={"Authorization": "Bearer some_token"},
             )
         assert resp.status_code == 401
 
@@ -168,7 +168,7 @@ class TestValidToken:
             resp = client.get(
                 "/performance",
                 params={"url": "https://example.com"},
-                headers={"Authorization": "valid_token"},
+                headers={"Authorization": "Bearer valid_token"},
             )
 
         assert resp.status_code == 200
@@ -183,7 +183,7 @@ class TestValidToken:
             resp = client.post(
                 "/scrape",
                 json={"url": "https://example.com", "render_mode": "http"},
-                headers={"Authorization": "valid_token"},
+                headers={"Authorization": "Bearer valid_token"},
             )
 
         assert resp.status_code == 200
