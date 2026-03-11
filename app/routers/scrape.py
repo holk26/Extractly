@@ -1,10 +1,11 @@
 import logging
 
 import httpx
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
+from app.dependencies.auth import require_auth
 from app.models.request import ScrapeRequest
 from app.models.response import ScrapeResponse
 from app.services.browser_fetcher import fetch_url_with_browser
@@ -15,7 +16,7 @@ from app.services.fetcher import fetch_url
 logger = logging.getLogger(__name__)
 
 limiter = Limiter(key_func=get_remote_address)
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_auth)])
 
 # Minimum word count below which a WordPress page is re-fetched with the
 # headless browser (e.g. sites using JavaScript page-builders like Elementor).
