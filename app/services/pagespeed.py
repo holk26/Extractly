@@ -57,9 +57,18 @@ async def fetch_pagespeed(
     if not url:
         raise ValueError("url must not be empty")
 
-    params: dict[str, str] = {"url": url, "strategy": strategy}
+    # The API only returns categories that are explicitly requested.
+    # Without specifying all four, seo/accessibility/best-practices come back empty.
+    params: list[tuple[str, str]] = [
+        ("url", url),
+        ("strategy", strategy),
+        ("category", "performance"),
+        ("category", "seo"),
+        ("category", "accessibility"),
+        ("category", "best-practices"),
+    ]
     if _API_KEY:
-        params["key"] = _API_KEY
+        params.append(("key", _API_KEY))
 
     logger.info("PageSpeed request", extra={"url": url, "strategy": strategy})
 
@@ -73,15 +82,17 @@ async def fetch_pagespeed(
     categories = lighthouse.get("categories", {})
     audits = lighthouse.get("audits", {})
 
-    perf_score: Optional[float] = None
-    raw_score = categories.get("performance", {}).get("score")
-    if raw_score is not None:
-        perf_score = round(float(raw_score), 4)
+    def _category_score(key: str) -> Optional[float]:
+        raw = categories.get(key, {}).get("score")
+        return round(float(raw), 4) if raw is not None else None
 
     return PerformanceResponse(
         url=url,
         strategy=strategy,
-        performance_score=perf_score,
+        performance_score=_category_score("performance"),
+        seo_score=_category_score("seo"),
+        accessibility_score=_category_score("accessibility"),
+        best_practices_score=_category_score("best-practices"),
         first_contentful_paint=_extract_metric(audits, "first-contentful-paint"),
         largest_contentful_paint=_extract_metric(audits, "largest-contentful-paint"),
         total_blocking_time=_extract_metric(audits, "total-blocking-time"),
