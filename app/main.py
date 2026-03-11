@@ -1,7 +1,7 @@
 import logging
 import logging.config
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -15,6 +15,7 @@ from app.routers.health import router as health_router
 from app.routers.performance import router as performance_router
 from app.routers.playground import router as playground_router
 from app.routers.scrape import limiter, router as scrape_router
+from app.dependencies.auth import require_auth
 
 logging.config.dictConfig(
     {
@@ -76,6 +77,6 @@ app.include_router(health_router)
 app.include_router(performance_router)
 
 
-@app.get("/", summary="API root")
+@app.get("/", summary="API root", dependencies=[Depends(require_auth)])
 async def root() -> dict:
     return {"message": "Hello from Extractly"}

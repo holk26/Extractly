@@ -2,10 +2,11 @@ import logging
 from urllib.parse import urlparse
 
 import httpx
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
+from app.dependencies.auth import require_auth
 from app.models.crawl_request import CrawlRequest
 from app.models.crawl_response import CrawlResponse, PageResult, SiteGlobalContext
 from app.services.crawler import PageData, crawl
@@ -14,7 +15,7 @@ from app.services.deduplicator import remove_boilerplate
 logger = logging.getLogger(__name__)
 
 limiter = Limiter(key_func=get_remote_address)
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_auth)])
 
 
 @router.post(

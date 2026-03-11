@@ -10,14 +10,15 @@ import logging
 from typing import Literal
 
 import httpx
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
+from app.dependencies.auth import require_auth
 from app.models.performance_response import PerformanceResponse
 from app.services.pagespeed import fetch_pagespeed
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_auth)])
 
 
 @router.get(

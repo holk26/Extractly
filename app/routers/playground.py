@@ -1,10 +1,11 @@
 import logging
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from playwright.async_api import Error as PlaywrightError
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
+from app.dependencies.auth import require_auth
 from app.models.playground_request import PlaygroundScrapeRequest
 from app.models.response import ScrapeResponse
 from app.services.browser_fetcher import fetch_url_with_browser
@@ -13,7 +14,7 @@ from app.services.extractor import extract
 logger = logging.getLogger(__name__)
 
 limiter = Limiter(key_func=get_remote_address)
-router = APIRouter(prefix="/playground", tags=["Playground"])
+router = APIRouter(prefix="/playground", tags=["Playground"], dependencies=[Depends(require_auth)])
 
 
 @router.post(

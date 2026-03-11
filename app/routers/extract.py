@@ -7,11 +7,12 @@ import zipfile
 from urllib.parse import urlparse
 
 import httpx
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
+from app.dependencies.auth import require_auth
 from app.models.crawl_response import SiteGlobalContext
 from app.models.extract_request import ExtractRequest
 from app.models.extract_response import ExtractResponse
@@ -23,7 +24,7 @@ from app.services.strategy import auto_extract
 logger = logging.getLogger(__name__)
 
 limiter = Limiter(key_func=get_remote_address)
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_auth)])
 
 
 @router.post(
