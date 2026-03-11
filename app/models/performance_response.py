@@ -17,6 +17,12 @@ class PerformanceResponse(BaseModel):
     strategy: Literal["mobile", "desktop"]
     performance_score: Optional[float]
     """Lighthouse performance score in the range [0, 1] (e.g. 0.92 → 92%)."""
+    seo_score: Optional[float]
+    """Lighthouse SEO score in the range [0, 1]."""
+    accessibility_score: Optional[float]
+    """Lighthouse accessibility score in the range [0, 1]."""
+    best_practices_score: Optional[float]
+    """Lighthouse best-practices score in the range [0, 1]."""
 
     first_contentful_paint: Optional[PerformanceMetric]
     largest_contentful_paint: Optional[PerformanceMetric]

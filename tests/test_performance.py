@@ -23,6 +23,9 @@ _PAGESPEED_SUCCESS_BODY = {
     "lighthouseResult": {
         "categories": {
             "performance": {"score": 0.92},
+            "seo": {"score": 0.98},
+            "accessibility": {"score": 0.85},
+            "best-practices": {"score": 0.75},
         },
         "audits": {
             "first-contentful-paint": {
@@ -101,6 +104,21 @@ class TestPerformanceSuccess:
             data = client.get("/performance", params={"url": "https://example.com"}).json()
         assert data["performance_score"] == pytest.approx(0.92, abs=1e-4)
 
+    def test_seo_score_is_present(self):
+        with _patch_pagespeed():
+            data = client.get("/performance", params={"url": "https://example.com"}).json()
+        assert data["seo_score"] == pytest.approx(0.98, abs=1e-4)
+
+    def test_accessibility_score_is_present(self):
+        with _patch_pagespeed():
+            data = client.get("/performance", params={"url": "https://example.com"}).json()
+        assert data["accessibility_score"] == pytest.approx(0.85, abs=1e-4)
+
+    def test_best_practices_score_is_present(self):
+        with _patch_pagespeed():
+            data = client.get("/performance", params={"url": "https://example.com"}).json()
+        assert data["best_practices_score"] == pytest.approx(0.75, abs=1e-4)
+
     def test_fcp_metric_present(self):
         with _patch_pagespeed():
             data = client.get("/performance", params={"url": "https://example.com"}).json()
@@ -133,7 +151,7 @@ class TestPerformanceSuccess:
         assert data["time_to_interactive"]["display_value"] == "3.1 s"
 
     def test_missing_audits_return_none(self):
-        """Partial API response: missing audits are returned as null."""
+        """Partial API response: missing audits and category scores are returned as null."""
         sparse_body = {
             "lighthouseResult": {
                 "categories": {"performance": {"score": 0.80}},
@@ -143,6 +161,9 @@ class TestPerformanceSuccess:
         with _patch_pagespeed(json_body=sparse_body):
             data = client.get("/performance", params={"url": "https://example.com"}).json()
         assert data["performance_score"] == pytest.approx(0.80)
+        assert data["seo_score"] is None
+        assert data["accessibility_score"] is None
+        assert data["best_practices_score"] is None
         assert data["first_contentful_paint"] is None
         assert data["largest_contentful_paint"] is None
 
