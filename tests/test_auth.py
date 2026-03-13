@@ -96,10 +96,10 @@ class TestMissingAuthHeader:
         resp = client.post("/playground/scrape", json={"url": "https://example.com"})
         assert resp.status_code == 401
 
-    def test_root_without_auth_returns_401(self):
-        """GET / without Authorization header returns 401."""
+    def test_root_without_auth_returns_200(self):
+        """GET / is a public endpoint and returns 200 without any Authorization header."""
         resp = client.get("/")
-        assert resp.status_code == 401
+        assert resp.status_code == 200
 
 
 # ---------------------------------------------------------------------------
