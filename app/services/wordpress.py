@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 from markdownify import markdownify
 
 from app.models.page import PageModel
-from app.services.fetcher import _validate_url
+from app.services.url_utils import validate_url
 from app.services.normalizer import generate_slug, make_frontmatter
 from app.services.sanitizer import sanitize, strip_shortcodes
 
@@ -24,7 +24,7 @@ async def is_wordpress(base_url: str) -> bool:
     """Return *True* when the site exposes the WordPress REST API namespace."""
     api_url = urljoin(base_url.rstrip("/") + "/", "wp-json/wp/v2/")
     try:
-        _validate_url(api_url)
+        validate_url(api_url)
         async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
             resp = await client.get(api_url)
             return resp.status_code == 200 and "namespace" in resp.text
@@ -39,7 +39,7 @@ async def _fetch_wp_resource(base_url: str, resource: str, max_items: int) -> Li
     api_url = urljoin(base_url.rstrip("/") + "/", f"wp-json/wp/v2/{resource}")
     fields = "id,link,title,content,excerpt,slug"
 
-    _validate_url(api_url)
+    validate_url(api_url)
     async with httpx.AsyncClient(timeout=_WP_API_TIMEOUT, follow_redirects=True) as client:
         while len(results) < max_items:
             try:
