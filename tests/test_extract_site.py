@@ -90,9 +90,9 @@ _PAGE3_HTML = """
 # ---------------------------------------------------------------------------
 
 def _post(url: str = "https://example.com", **kwargs):
-    """POST to /api/extract-site with sensible defaults."""
+    """POST to /v1/extract-site with sensible defaults."""
     payload = {"url": url, **kwargs}
-    return client.post("/api/extract-site", json=payload)
+    return client.post("/v1/extract-site", json=payload)
 
 
 # ---------------------------------------------------------------------------

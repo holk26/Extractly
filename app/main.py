@@ -68,13 +68,13 @@ async def generic_exception_handler(request: Request, exc: Exception) -> JSONRes
     return JSONResponse(status_code=500, content={"detail": "An unexpected error occurred."})
 
 
-app.include_router(scrape_router)
-app.include_router(crawl_router)
-app.include_router(extract_router)
-app.include_router(extract_site_router)
-app.include_router(playground_router)
+app.include_router(scrape_router, prefix="/v1")
+app.include_router(crawl_router, prefix="/v1")
+app.include_router(extract_router, prefix="/v1")
+app.include_router(extract_site_router, prefix="/v1")
+app.include_router(playground_router, prefix="/v1")
 app.include_router(health_router)
-app.include_router(performance_router)
+app.include_router(performance_router, prefix="/v1")
 
 
 @app.get("/", summary="API root")

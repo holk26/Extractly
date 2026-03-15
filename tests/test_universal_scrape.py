@@ -139,7 +139,7 @@ _SPA_RENDERED_HTML = """
 def _post(url: str = "https://example.com", **kwargs):
     """POST to /scrape with sensible defaults."""
     payload = {"url": url, **kwargs}
-    return client.post("/scrape", json=payload)
+    return client.post("/v1/scrape", json=payload)
 
 
 # ---------------------------------------------------------------------------

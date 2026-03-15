@@ -18,7 +18,7 @@ from app.services.crawling.site_crawler import crawl_site
 logger = logging.getLogger(__name__)
 
 limiter = Limiter(key_func=get_remote_address)
-router = APIRouter(prefix="/api", dependencies=[Depends(require_auth)])
+router = APIRouter(dependencies=[Depends(require_auth)])
 
 
 @router.post(
