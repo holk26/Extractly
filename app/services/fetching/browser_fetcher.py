@@ -2,7 +2,7 @@
 
 from playwright.async_api import async_playwright
 
-from app.services.url_utils import (
+from app.services.fetching.url_utils import (
     BROWSER_TIMEOUT_MS,
     MAX_CONTENT_SIZE,
     validate_url,

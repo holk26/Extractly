@@ -13,7 +13,7 @@ from slowapi.util import get_remote_address
 from app.dependencies.auth import require_auth
 from app.models.extract_site_request import ExtractSiteRequest
 from app.models.extract_site_response import ExtractedPage, ExtractSiteResponse
-from app.services.site_crawler import crawl_site
+from app.services.crawling.site_crawler import crawl_site
 
 logger = logging.getLogger(__name__)
 

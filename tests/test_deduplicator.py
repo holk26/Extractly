@@ -1,6 +1,6 @@
 """Tests for app.services.deduplicator.remove_boilerplate."""
 
-from app.services.deduplicator import remove_boilerplate, _split_blocks
+from app.services.parsing.deduplicator import remove_boilerplate, _split_blocks
 
 
 class TestSplitBlocks:

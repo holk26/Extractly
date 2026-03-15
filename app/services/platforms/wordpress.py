@@ -9,9 +9,9 @@ from bs4 import BeautifulSoup
 from markdownify import markdownify
 
 from app.models.page import PageModel
-from app.services.url_utils import validate_url
-from app.services.normalizer import generate_slug, make_frontmatter
-from app.services.sanitizer import sanitize, strip_shortcodes
+from app.services.fetching.url_utils import validate_url
+from app.services.parsing.normalizer import generate_slug, make_frontmatter
+from app.services.parsing.sanitizer import sanitize, strip_shortcodes
 
 logger = logging.getLogger(__name__)
 

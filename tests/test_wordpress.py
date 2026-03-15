@@ -1,6 +1,6 @@
 """Tests for wordpress._item_to_page shortcode stripping and dummy-page filtering."""
 
-from app.services.wordpress import _item_to_page
+from app.services.platforms.wordpress import _item_to_page
 
 _BASE = "https://example.com"
 

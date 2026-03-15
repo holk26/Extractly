@@ -17,9 +17,9 @@ from app.models.crawl_response import SiteGlobalContext
 from app.models.extract_request import ExtractRequest
 from app.models.extract_response import ExtractResponse
 from app.models.page import PageModel
-from app.services.deduplicator import remove_boilerplate
-from app.services.normalizer import make_frontmatter
-from app.services.strategy import auto_extract
+from app.services.parsing.deduplicator import remove_boilerplate
+from app.services.parsing.normalizer import make_frontmatter
+from app.services.platforms.strategy import auto_extract
 
 logger = logging.getLogger(__name__)
 

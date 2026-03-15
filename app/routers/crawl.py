@@ -9,8 +9,8 @@ from slowapi.util import get_remote_address
 from app.dependencies.auth import require_auth
 from app.models.crawl_request import CrawlRequest
 from app.models.crawl_response import CrawlResponse, PageResult, SiteGlobalContext
-from app.services.crawler import PageData, crawl
-from app.services.deduplicator import remove_boilerplate
+from app.services.crawling.crawler import PageData, crawl
+from app.services.parsing.deduplicator import remove_boilerplate
 
 logger = logging.getLogger(__name__)
 

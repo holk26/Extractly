@@ -2,7 +2,7 @@ from urllib.parse import urljoin
 
 import httpx
 
-from app.services.url_utils import (
+from app.services.fetching.url_utils import (
     MAX_CONTENT_SIZE,
     validate_url,
 )

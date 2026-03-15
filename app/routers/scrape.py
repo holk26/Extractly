@@ -8,10 +8,10 @@ from slowapi.util import get_remote_address
 from app.dependencies.auth import require_auth
 from app.models.request import ScrapeRequest
 from app.models.response import ScrapeResponse
-from app.services.browser_fetcher import fetch_url_with_browser
-from app.services.detector import detect_platform
-from app.services.extractor import extract
-from app.services.fetcher import fetch_url
+from app.services.fetching.browser_fetcher import fetch_url_with_browser
+from app.services.platforms.detector import detect_platform
+from app.services.parsing.extractor import extract
+from app.services.fetching.fetcher import fetch_url
 
 logger = logging.getLogger(__name__)
 

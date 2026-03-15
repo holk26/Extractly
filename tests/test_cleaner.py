@@ -1,6 +1,6 @@
 """Tests for app.services.cleaner.clean_markdown."""
 
-from app.services.cleaner import clean_markdown
+from app.services.parsing.cleaner import clean_markdown
 
 
 class TestCleanMarkdownEmailObfuscation:

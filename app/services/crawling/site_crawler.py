@@ -17,9 +17,9 @@ from markdownify import markdownify
 from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 from playwright.async_api import async_playwright
 
-from app.services.extractor import _extract_title, _find_main_content
-from app.services.sanitizer import sanitize
-from app.services.url_utils import (
+from app.services.parsing.extractor import _extract_title, _find_main_content
+from app.services.parsing.sanitizer import sanitize
+from app.services.fetching.url_utils import (
     ALLOWED_SCHEMES,
     BROWSER_TIMEOUT_MS,
     validate_url,

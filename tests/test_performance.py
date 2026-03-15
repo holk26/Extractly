@@ -270,7 +270,7 @@ def _patch_pagespeed(json_body: dict = _PAGESPEED_SUCCESS_BODY, status_code: int
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=False)
     mock_client.get = AsyncMock(return_value=mock_resp)
-    return patch("app.services.pagespeed.httpx.AsyncClient", return_value=mock_client)
+    return patch("app.services.performance.pagespeed.httpx.AsyncClient", return_value=mock_client)
 
 
 # ---------------------------------------------------------------------------
@@ -698,7 +698,7 @@ class TestPerformanceErrorHandling:
         mock_client.__aexit__ = AsyncMock(return_value=False)
         mock_client.get = AsyncMock(side_effect=httpx.TimeoutException("timeout"))
 
-        with patch("app.services.pagespeed.httpx.AsyncClient", return_value=mock_client):
+        with patch("app.services.performance.pagespeed.httpx.AsyncClient", return_value=mock_client):
             resp = client.get("/performance", params={"url": "https://example.com"})
 
         assert resp.status_code == 504
@@ -714,7 +714,7 @@ class TestPerformanceErrorHandling:
         mock_client.__aexit__ = AsyncMock(return_value=False)
         mock_client.get = AsyncMock(side_effect=exc)
 
-        with patch("app.services.pagespeed.httpx.AsyncClient", return_value=mock_client):
+        with patch("app.services.performance.pagespeed.httpx.AsyncClient", return_value=mock_client):
             resp = client.get("/performance", params={"url": "https://example.com"})
 
         assert resp.status_code == 502
@@ -727,7 +727,7 @@ class TestPerformanceErrorHandling:
             side_effect=httpx.RequestError("connection refused")
         )
 
-        with patch("app.services.pagespeed.httpx.AsyncClient", return_value=mock_client):
+        with patch("app.services.performance.pagespeed.httpx.AsyncClient", return_value=mock_client):
             resp = client.get("/performance", params={"url": "https://example.com"})
 
         assert resp.status_code == 502
