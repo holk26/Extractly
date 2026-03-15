@@ -68,32 +68,32 @@ def _mock_pb_response(status_code: int) -> AsyncMock:
 class TestMissingAuthHeader:
     def test_scrape_without_auth_returns_401(self):
         """POST /scrape without Authorization header returns 401."""
-        resp = client.post("/scrape", json={"url": "https://example.com"})
+        resp = client.post("/v1/scrape", json={"url": "https://example.com"})
         assert resp.status_code == 401
 
     def test_performance_without_auth_returns_401(self):
         """GET /performance without Authorization header returns 401."""
-        resp = client.get("/performance", params={"url": "https://example.com"})
+        resp = client.get("/v1/performance", params={"url": "https://example.com"})
         assert resp.status_code == 401
 
     def test_crawl_without_auth_returns_401(self):
         """POST /crawl without Authorization header returns 401."""
-        resp = client.post("/crawl", json={"url": "https://example.com"})
+        resp = client.post("/v1/crawl", json={"url": "https://example.com"})
         assert resp.status_code == 401
 
     def test_extract_without_auth_returns_401(self):
         """POST /extract without Authorization header returns 401."""
-        resp = client.post("/extract", json={"url": "https://example.com"})
+        resp = client.post("/v1/extract", json={"url": "https://example.com"})
         assert resp.status_code == 401
 
     def test_extract_site_without_auth_returns_401(self):
-        """POST /api/extract-site without Authorization header returns 401."""
-        resp = client.post("/api/extract-site", json={"url": "https://example.com"})
+        """POST /v1/extract-site without Authorization header returns 401."""
+        resp = client.post("/v1/extract-site", json={"url": "https://example.com"})
         assert resp.status_code == 401
 
     def test_playground_scrape_without_auth_returns_401(self):
-        """POST /playground/scrape without Authorization header returns 401."""
-        resp = client.post("/playground/scrape", json={"url": "https://example.com"})
+        """POST /v1/playground/scrape without Authorization header returns 401."""
+        resp = client.post("/v1/playground/scrape", json={"url": "https://example.com"})
         assert resp.status_code == 401
 
     def test_root_without_auth_returns_200(self):
@@ -112,7 +112,7 @@ class TestInvalidToken:
         with patch("app.dependencies.auth.httpx.AsyncClient") as mock_cls:
             mock_cls.return_value = _mock_pb_response(401)
             resp = client.get(
-                "/performance",
+                "/v1/performance",
                 params={"url": "https://example.com"},
                 headers={"Authorization": "Bearer invalid_token"},
             )
@@ -123,7 +123,7 @@ class TestInvalidToken:
         with patch("app.dependencies.auth.httpx.AsyncClient") as mock_cls:
             mock_cls.return_value = _mock_pb_response(403)
             resp = client.get(
-                "/performance",
+                "/v1/performance",
                 params={"url": "https://example.com"},
                 headers={"Authorization": "Bearer some_token"},
             )
@@ -139,7 +139,7 @@ class TestInvalidToken:
         with patch("app.dependencies.auth.httpx.AsyncClient") as mock_cls:
             mock_cls.return_value = mock_client
             resp = client.get(
-                "/performance",
+                "/v1/performance",
                 params={"url": "https://example.com"},
                 headers={"Authorization": "Bearer some_token"},
             )
@@ -166,7 +166,7 @@ class TestValidToken:
         ):
             mock_cls.return_value = _mock_pb_response(200)
             resp = client.get(
-                "/performance",
+                "/v1/performance",
                 params={"url": "https://example.com"},
                 headers={"Authorization": "Bearer valid_token"},
             )
@@ -181,7 +181,7 @@ class TestValidToken:
         ):
             mock_cls.return_value = _mock_pb_response(200)
             resp = client.post(
-                "/scrape",
+                "/v1/scrape",
                 json={"url": "https://example.com", "render_mode": "http"},
                 headers={"Authorization": "Bearer valid_token"},
             )

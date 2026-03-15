@@ -4,8 +4,8 @@ from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
 from markdownify import markdownify
 
-from app.services.cleaner import clean_markdown
-from app.services.sanitizer import sanitize
+from app.services.parsing.cleaner import clean_markdown
+from app.services.parsing.sanitizer import sanitize
 
 
 def _normalize_url(base_url: str, href: str) -> str:
@@ -37,7 +37,7 @@ def _find_main_content(soup: BeautifulSoup) -> BeautifulSoup:
     """Return the most likely main-content element.
 
     Checks common semantic selectors first, then WordPress-specific content
-    containers, before falling back to <body>.
+    containers and page-builder roots, before falling back to <body>.
     """
     for selector in (
         "article",
@@ -48,6 +48,14 @@ def _find_main_content(soup: BeautifulSoup) -> BeautifulSoup:
         ".post-content",
         ".page-content",
         ".wp-block-post-content",
+        # Elementor page builder
+        ".elementor-section-wrap",
+        # Divi page builder
+        ".et_pb_section",
+        # WPBakery / Visual Composer
+        ".vc_row",
+        # Beaver Builder
+        ".fl-row-content",
     ):
         node = soup.select_one(selector)
         if node:

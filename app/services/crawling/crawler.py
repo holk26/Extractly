@@ -7,8 +7,8 @@ from urllib.parse import parse_qs, urlparse
 
 import httpx
 
-from app.services.extractor import extract
-from app.services.fetcher import fetch_url
+from app.services.parsing.extractor import extract
+from app.services.fetching.fetcher import fetch_url
 
 logger = logging.getLogger(__name__)
 

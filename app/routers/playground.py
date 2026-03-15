@@ -8,8 +8,8 @@ from slowapi.util import get_remote_address
 from app.dependencies.auth import require_auth
 from app.models.playground_request import PlaygroundScrapeRequest
 from app.models.response import ScrapeResponse
-from app.services.browser_fetcher import fetch_url_with_browser
-from app.services.extractor import extract
+from app.services.fetching.browser_fetcher import fetch_url_with_browser
+from app.services.parsing.extractor import extract
 
 logger = logging.getLogger(__name__)
 

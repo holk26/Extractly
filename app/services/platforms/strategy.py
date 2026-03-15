@@ -7,12 +7,12 @@ from urllib.parse import urlparse
 import httpx
 
 from app.models.page import PageModel
-from app.services.crawler import crawl
-from app.services.extractor import extract
-from app.services.fetcher import fetch_url
-from app.services.normalizer import extract_canonical, generate_slug, make_frontmatter
-from app.services.sitemap import discover_urls_via_sitemap
-from app.services.wordpress import extract_via_wordpress_api, is_wordpress
+from app.services.crawling.crawler import crawl
+from app.services.parsing.extractor import extract
+from app.services.fetching.fetcher import fetch_url
+from app.services.parsing.normalizer import extract_canonical, generate_slug, make_frontmatter
+from app.services.crawling.sitemap import discover_urls_via_sitemap
+from app.services.platforms.wordpress import extract_via_wordpress_api, is_wordpress
 
 logger = logging.getLogger(__name__)
 

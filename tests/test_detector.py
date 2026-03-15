@@ -1,6 +1,6 @@
 """Tests for app.services.detector.detect_platform."""
 
-from app.services.detector import _SPA_MIN_WORDS, detect_platform
+from app.services.platforms.detector import _SPA_MIN_WORDS, detect_platform
 
 
 # ---------------------------------------------------------------------------

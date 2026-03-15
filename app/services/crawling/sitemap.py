@@ -8,7 +8,7 @@ from xml.etree import ElementTree
 
 import httpx
 
-from app.services.fetcher import fetch_url
+from app.services.fetching.fetcher import fetch_url
 
 logger = logging.getLogger(__name__)
 

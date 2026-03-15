@@ -1,6 +1,6 @@
 """Tests for sanitizer.strip_shortcodes and sanitize."""
 
-from app.services.sanitizer import sanitize, strip_shortcodes
+from app.services.parsing.sanitizer import sanitize, strip_shortcodes
 
 
 class TestStripShortcodes:
@@ -330,7 +330,7 @@ class TestSanitizeStructuralTagProtection:
 </body>
 </html>"""
         from markdownify import markdownify
-        from app.services.site_crawler import _find_main_content
+        from app.services.crawling.site_crawler import _find_main_content
 
         clean_soup = sanitize(html)
         node = _find_main_content(clean_soup)

@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.dependencies.auth import require_auth
 from app.models.performance_response import PerformanceResponse
-from app.services.pagespeed import fetch_pagespeed
+from app.services.performance.pagespeed import fetch_pagespeed
 
 logger = logging.getLogger(__name__)
 

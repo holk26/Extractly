@@ -270,7 +270,7 @@ def _patch_pagespeed(json_body: dict = _PAGESPEED_SUCCESS_BODY, status_code: int
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=False)
     mock_client.get = AsyncMock(return_value=mock_resp)
-    return patch("app.services.pagespeed.httpx.AsyncClient", return_value=mock_client)
+    return patch("app.services.performance.pagespeed.httpx.AsyncClient", return_value=mock_client)
 
 
 # ---------------------------------------------------------------------------
@@ -280,13 +280,13 @@ def _patch_pagespeed(json_body: dict = _PAGESPEED_SUCCESS_BODY, status_code: int
 class TestPerformanceSuccess:
     def test_returns_200(self):
         with _patch_pagespeed():
-            resp = client.get("/performance", params={"url": "https://example.com"})
+            resp = client.get("/v1/performance", params={"url": "https://example.com"})
         assert resp.status_code == 200
 
     def test_response_contains_url_and_strategy(self):
         with _patch_pagespeed():
             data = client.get(
-                "/performance",
+                "/v1/performance",
                 params={"url": "https://example.com", "strategy": "desktop"},
             ).json()
         assert data["url"] == "https://example.com"
@@ -294,58 +294,58 @@ class TestPerformanceSuccess:
 
     def test_default_strategy_is_mobile(self):
         with _patch_pagespeed():
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         assert data["strategy"] == "mobile"
 
     def test_performance_score_is_present(self):
         with _patch_pagespeed():
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         assert data["performance_score"] == pytest.approx(0.92, abs=1e-4)
 
     def test_seo_score_is_present(self):
         with _patch_pagespeed():
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         assert data["seo_score"] == pytest.approx(0.98, abs=1e-4)
 
     def test_accessibility_score_is_present(self):
         with _patch_pagespeed():
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         assert data["accessibility_score"] == pytest.approx(0.85, abs=1e-4)
 
     def test_best_practices_score_is_present(self):
         with _patch_pagespeed():
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         assert data["best_practices_score"] == pytest.approx(0.75, abs=1e-4)
 
     def test_fcp_metric_present(self):
         with _patch_pagespeed():
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         assert data["first_contentful_paint"]["display_value"] == "1.2 s"
         assert data["first_contentful_paint"]["value"] == pytest.approx(1200.5)
 
     def test_lcp_metric_present(self):
         with _patch_pagespeed():
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         assert data["largest_contentful_paint"]["display_value"] == "2.3 s"
 
     def test_tbt_metric_present(self):
         with _patch_pagespeed():
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         assert data["total_blocking_time"]["display_value"] == "50 ms"
 
     def test_cls_metric_present(self):
         with _patch_pagespeed():
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         assert data["cumulative_layout_shift"]["display_value"] == "0.05"
 
     def test_speed_index_metric_present(self):
         with _patch_pagespeed():
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         assert data["speed_index"]["display_value"] == "1.8 s"
 
     def test_tti_metric_present(self):
         with _patch_pagespeed():
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         assert data["time_to_interactive"]["display_value"] == "3.1 s"
 
     def test_missing_audits_return_none(self):
@@ -357,7 +357,7 @@ class TestPerformanceSuccess:
             }
         }
         with _patch_pagespeed(json_body=sparse_body):
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         assert data["performance_score"] == pytest.approx(0.80)
         assert data["seo_score"] is None
         assert data["accessibility_score"] is None
@@ -373,19 +373,19 @@ class TestPerformanceSuccess:
 class TestOpportunities:
     def test_opportunities_list_is_present(self):
         with _patch_pagespeed():
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         assert isinstance(data["opportunities"], list)
 
     def test_opportunity_ids_present(self):
         with _patch_pagespeed():
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         ids = [o["id"] for o in data["opportunities"]]
         assert "render-blocking-resources" in ids
         assert "unused-javascript" in ids
 
     def test_opportunity_has_required_fields(self):
         with _patch_pagespeed():
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         opp = next(o for o in data["opportunities"] if o["id"] == "render-blocking-resources")
         assert opp["title"] == "Eliminate render-blocking resources"
         assert "description" in opp
@@ -394,7 +394,7 @@ class TestOpportunities:
 
     def test_opportunity_byte_savings(self):
         with _patch_pagespeed():
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         opp = next(o for o in data["opportunities"] if o["id"] == "unused-javascript")
         assert opp["savings_bytes"] == pytest.approx(122880)
         assert opp["savings_ms"] == pytest.approx(800.0)
@@ -402,7 +402,7 @@ class TestOpportunities:
     def test_core_metrics_not_in_opportunities(self):
         """Audits already surfaced as top-level metrics must not appear in opportunities."""
         with _patch_pagespeed():
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         ids = [o["id"] for o in data["opportunities"]]
         assert "first-contentful-paint" not in ids
         assert "largest-contentful-paint" not in ids
@@ -417,7 +417,7 @@ class TestOpportunities:
             }
         }
         with _patch_pagespeed(json_body=sparse_body):
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         assert data["opportunities"] == []
 
 
@@ -428,39 +428,39 @@ class TestOpportunities:
 class TestDiagnostics:
     def test_diagnostics_list_is_present(self):
         with _patch_pagespeed():
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         assert isinstance(data["diagnostics"], list)
 
     def test_failing_numeric_audit_in_diagnostics(self):
         with _patch_pagespeed():
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         ids = [d["id"] for d in data["diagnostics"]]
         assert "dom-size" in ids
         assert "bootup-time" in ids
 
     def test_informative_audit_in_diagnostics(self):
         with _patch_pagespeed():
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         ids = [d["id"] for d in data["diagnostics"]]
         assert "third-party-summary" in ids
 
     def test_passing_audit_not_in_diagnostics(self):
         """An audit with score == 1.0 should be excluded from diagnostics."""
         with _patch_pagespeed():
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         ids = [d["id"] for d in data["diagnostics"]]
         assert "uses-http2" not in ids
 
     def test_not_applicable_audit_excluded(self):
         with _patch_pagespeed():
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         ids = [d["id"] for d in data["diagnostics"]]
         assert "efficient-animated-content" not in ids
 
     def test_opportunity_audit_not_in_diagnostics(self):
         """Opportunity audits should not appear in the diagnostics list."""
         with _patch_pagespeed():
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         ids = [d["id"] for d in data["diagnostics"]]
         assert "render-blocking-resources" not in ids
         assert "unused-javascript" not in ids
@@ -468,13 +468,13 @@ class TestDiagnostics:
     def test_resource_summary_not_in_diagnostics(self):
         """resource-summary is surfaced via resource_summary; not in diagnostics list."""
         with _patch_pagespeed():
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         ids = [d["id"] for d in data["diagnostics"]]
         assert "resource-summary" not in ids
 
     def test_diagnostic_has_required_fields(self):
         with _patch_pagespeed():
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         diag = next(d for d in data["diagnostics"] if d["id"] == "dom-size")
         assert diag["title"] == "Avoids an excessive DOM size"
         assert "description" in diag
@@ -483,7 +483,7 @@ class TestDiagnostics:
 
     def test_core_metrics_not_in_diagnostics(self):
         with _patch_pagespeed():
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         ids = [d["id"] for d in data["diagnostics"]]
         for core_id in ("first-contentful-paint", "largest-contentful-paint",
                         "cumulative-layout-shift", "speed-index", "interactive"):
@@ -497,19 +497,19 @@ class TestDiagnostics:
 class TestResourceSummary:
     def test_resource_summary_is_present(self):
         with _patch_pagespeed():
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         assert data["resource_summary"] is not None
 
     def test_resource_summary_total_fields(self):
         with _patch_pagespeed():
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         rs = data["resource_summary"]
         assert rs["total_count"] == 82
         assert rs["total_size"] == 467456
 
     def test_resource_summary_items(self):
         with _patch_pagespeed():
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         items = data["resource_summary"]["items"]
         assert len(items) == 4  # total row excluded
         types = [i["resource_type"] for i in items]
@@ -520,7 +520,7 @@ class TestResourceSummary:
 
     def test_resource_item_fields(self):
         with _patch_pagespeed():
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         script_item = next(
             i for i in data["resource_summary"]["items"] if i["resource_type"] == "script"
         )
@@ -536,7 +536,7 @@ class TestResourceSummary:
             }
         }
         with _patch_pagespeed(json_body=sparse_body):
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         assert data["resource_summary"] is None
 
 
@@ -547,17 +547,17 @@ class TestResourceSummary:
 class TestFieldData:
     def test_field_data_is_present(self):
         with _patch_pagespeed():
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         assert data["field_data"] is not None
 
     def test_field_data_overall_category(self):
         with _patch_pagespeed():
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         assert data["field_data"]["overall_category"] == "AVERAGE"
 
     def test_field_data_fcp_metric(self):
         with _patch_pagespeed():
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         fcp = data["field_data"]["first_contentful_paint"]
         assert fcp is not None
         assert fcp["percentile"] == 1500
@@ -566,28 +566,28 @@ class TestFieldData:
 
     def test_field_data_lcp_metric(self):
         with _patch_pagespeed():
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         lcp = data["field_data"]["largest_contentful_paint"]
         assert lcp is not None
         assert lcp["category"] == "AVERAGE"
 
     def test_field_data_fid_metric(self):
         with _patch_pagespeed():
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         fid = data["field_data"]["first_input_delay"]
         assert fid is not None
         assert fid["category"] == "FAST"
 
     def test_field_data_cls_metric(self):
         with _patch_pagespeed():
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         cls_ = data["field_data"]["cumulative_layout_shift"]
         assert cls_ is not None
         assert cls_["category"] == "FAST"
 
     def test_field_data_inp_metric(self):
         with _patch_pagespeed():
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         inp = data["field_data"]["interaction_to_next_paint"]
         assert inp is not None
         assert inp["percentile"] == 140
@@ -595,14 +595,14 @@ class TestFieldData:
 
     def test_field_data_ttfb_metric(self):
         with _patch_pagespeed():
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         ttfb = data["field_data"]["experimental_time_to_first_byte"]
         assert ttfb is not None
         assert ttfb["category"] == "FAST"
 
     def test_crux_distribution_structure(self):
         with _patch_pagespeed():
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         dist = data["field_data"]["first_contentful_paint"]["distributions"]
         assert all("proportion" in d for d in dist)
         proportions = [d["proportion"] for d in dist]
@@ -616,7 +616,7 @@ class TestFieldData:
             }
         }
         with _patch_pagespeed(json_body=sparse_body):
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         assert data["field_data"] is None
 
 
@@ -627,17 +627,17 @@ class TestFieldData:
 class TestOriginFieldData:
     def test_origin_field_data_is_present(self):
         with _patch_pagespeed():
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         assert data["origin_field_data"] is not None
 
     def test_origin_field_data_overall_category(self):
         with _patch_pagespeed():
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         assert data["origin_field_data"]["overall_category"] == "SLOW"
 
     def test_origin_field_data_fcp(self):
         with _patch_pagespeed():
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         fcp = data["origin_field_data"]["first_contentful_paint"]
         assert fcp is not None
         assert fcp["percentile"] == 2800
@@ -651,7 +651,7 @@ class TestOriginFieldData:
             }
         }
         with _patch_pagespeed(json_body=sparse_body):
-            data = client.get("/performance", params={"url": "https://example.com"}).json()
+            data = client.get("/v1/performance", params={"url": "https://example.com"}).json()
         assert data["origin_field_data"] is None
 
 
@@ -663,27 +663,27 @@ class TestPerformanceStrategyValidation:
     def test_mobile_strategy_accepted(self):
         with _patch_pagespeed():
             resp = client.get(
-                "/performance", params={"url": "https://example.com", "strategy": "mobile"}
+                "/v1/performance", params={"url": "https://example.com", "strategy": "mobile"}
             )
         assert resp.status_code == 200
 
     def test_desktop_strategy_accepted(self):
         with _patch_pagespeed():
             resp = client.get(
-                "/performance", params={"url": "https://example.com", "strategy": "desktop"}
+                "/v1/performance", params={"url": "https://example.com", "strategy": "desktop"}
             )
         assert resp.status_code == 200
 
     def test_invalid_strategy_returns_422(self):
         """FastAPI validates the Literal type; unsupported strategy → 422."""
         resp = client.get(
-            "/performance", params={"url": "https://example.com", "strategy": "tablet"}
+            "/v1/performance", params={"url": "https://example.com", "strategy": "tablet"}
         )
         assert resp.status_code == 422
 
     def test_missing_url_returns_422(self):
         """URL is a required query parameter; omitting it → 422."""
-        resp = client.get("/performance", params={"strategy": "mobile"})
+        resp = client.get("/v1/performance", params={"strategy": "mobile"})
         assert resp.status_code == 422
 
 
@@ -698,8 +698,8 @@ class TestPerformanceErrorHandling:
         mock_client.__aexit__ = AsyncMock(return_value=False)
         mock_client.get = AsyncMock(side_effect=httpx.TimeoutException("timeout"))
 
-        with patch("app.services.pagespeed.httpx.AsyncClient", return_value=mock_client):
-            resp = client.get("/performance", params={"url": "https://example.com"})
+        with patch("app.services.performance.pagespeed.httpx.AsyncClient", return_value=mock_client):
+            resp = client.get("/v1/performance", params={"url": "https://example.com"})
 
         assert resp.status_code == 504
 
@@ -714,8 +714,8 @@ class TestPerformanceErrorHandling:
         mock_client.__aexit__ = AsyncMock(return_value=False)
         mock_client.get = AsyncMock(side_effect=exc)
 
-        with patch("app.services.pagespeed.httpx.AsyncClient", return_value=mock_client):
-            resp = client.get("/performance", params={"url": "https://example.com"})
+        with patch("app.services.performance.pagespeed.httpx.AsyncClient", return_value=mock_client):
+            resp = client.get("/v1/performance", params={"url": "https://example.com"})
 
         assert resp.status_code == 502
 
@@ -727,7 +727,7 @@ class TestPerformanceErrorHandling:
             side_effect=httpx.RequestError("connection refused")
         )
 
-        with patch("app.services.pagespeed.httpx.AsyncClient", return_value=mock_client):
-            resp = client.get("/performance", params={"url": "https://example.com"})
+        with patch("app.services.performance.pagespeed.httpx.AsyncClient", return_value=mock_client):
+            resp = client.get("/v1/performance", params={"url": "https://example.com"})
 
         assert resp.status_code == 502

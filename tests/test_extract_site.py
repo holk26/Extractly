@@ -90,9 +90,9 @@ _PAGE3_HTML = """
 # ---------------------------------------------------------------------------
 
 def _post(url: str = "https://example.com", **kwargs):
-    """POST to /api/extract-site with sensible defaults."""
+    """POST to /v1/extract-site with sensible defaults."""
     payload = {"url": url, **kwargs}
-    return client.post("/api/extract-site", json=payload)
+    return client.post("/v1/extract-site", json=payload)
 
 
 # ---------------------------------------------------------------------------
@@ -103,7 +103,7 @@ class TestExtractSiteBasic:
     def test_extracts_single_page(self):
         """Test extracting a single page with no internal links."""
         async def mock_crawl(url, max_pages):
-            from app.services.site_crawler import PageData
+            from app.services.crawling.site_crawler import PageData
             return [
                 PageData(
                     url=url,
@@ -126,7 +126,7 @@ class TestExtractSiteBasic:
     def test_extracts_multiple_pages(self):
         """Test extracting multiple pages from a site."""
         async def mock_crawl(url, max_pages):
-            from app.services.site_crawler import PageData
+            from app.services.crawling.site_crawler import PageData
             return [
                 PageData(
                     url="https://example.com",
@@ -159,7 +159,7 @@ class TestExtractSiteBasic:
     def test_respects_max_pages_limit(self):
         """Test that max_pages parameter limits the number of extracted pages."""
         async def mock_crawl(url, max_pages):
-            from app.services.site_crawler import PageData
+            from app.services.crawling.site_crawler import PageData
             # Return only max_pages number of results
             return [
                 PageData(
@@ -243,7 +243,7 @@ class TestExtractSiteResponseSchema:
     def test_response_has_required_fields(self):
         """Test that response contains all required fields."""
         async def mock_crawl(url, max_pages):
-            from app.services.site_crawler import PageData
+            from app.services.crawling.site_crawler import PageData
             return [
                 PageData(
                     url=url,
@@ -290,7 +290,7 @@ class TestFetchWithBrowserResilience:
         """If networkidle times out after scrolling, page content is still returned."""
         from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 
-        from app.services.site_crawler import _fetch_with_browser
+        from app.services.crawling.site_crawler import _fetch_with_browser
 
         sample_html = "<html><body><h1>Hello</h1></body></html>"
 
@@ -317,7 +317,7 @@ class TestFetchWithBrowserResilience:
         mock_pw.__aexit__ = AsyncMock(return_value=False)
         mock_pw.chromium.launch = AsyncMock(return_value=mock_browser)
 
-        with patch("app.services.site_crawler.async_playwright", return_value=mock_pw):
+        with patch("app.services.crawling.site_crawler.async_playwright", return_value=mock_pw):
             html = await _fetch_with_browser("https://example.com")
 
         assert html == sample_html
@@ -325,7 +325,7 @@ class TestFetchWithBrowserResilience:
     @pytest.mark.asyncio
     async def test_goto_uses_load_not_networkidle(self):
         """page.goto must use wait_until='load' so sites with background traffic load."""
-        from app.services.site_crawler import _fetch_with_browser
+        from app.services.crawling.site_crawler import _fetch_with_browser
 
         mock_page = AsyncMock()
         mock_page.goto = AsyncMock()
@@ -346,7 +346,7 @@ class TestFetchWithBrowserResilience:
         mock_pw.__aexit__ = AsyncMock(return_value=False)
         mock_pw.chromium.launch = AsyncMock(return_value=mock_browser)
 
-        with patch("app.services.site_crawler.async_playwright", return_value=mock_pw):
+        with patch("app.services.crawling.site_crawler.async_playwright", return_value=mock_pw):
             await _fetch_with_browser("https://example.com")
 
         # The first positional arg after URL should be wait_until='load'
@@ -366,8 +366,8 @@ class TestFindMainContent:
         from bs4 import BeautifulSoup
         from markdownify import markdownify
 
-        from app.services.sanitizer import sanitize
-        from app.services.site_crawler import _find_main_content
+        from app.services.parsing.sanitizer import sanitize
+        from app.services.crawling.site_crawler import _find_main_content
 
         clean_soup = sanitize(html)
         node = _find_main_content(clean_soup)
@@ -427,16 +427,16 @@ class TestNormaliseUrl:
 
     def test_root_with_slash_equals_root_without_slash(self):
         """https://example.com/ and https://example.com must normalise to the same URL."""
-        from app.services.site_crawler import _normalise
+        from app.services.crawling.site_crawler import _normalise
         assert _normalise("https://example.com/") == _normalise("https://example.com")
 
     def test_path_trailing_slash_unchanged(self):
         """Paths other than root are kept as-is to avoid normalisation side-effects."""
-        from app.services.site_crawler import _normalise
+        from app.services.crawling.site_crawler import _normalise
         assert _normalise("https://example.com/page/") == "https://example.com/page/"
 
     def test_fragment_stripped(self):
         """URL fragments are still stripped."""
-        from app.services.site_crawler import _normalise
+        from app.services.crawling.site_crawler import _normalise
         assert _normalise("https://example.com/#section") == "https://example.com/"
         assert _normalise("https://example.com/page#top") == "https://example.com/page"

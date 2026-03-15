@@ -7,9 +7,7 @@ This module handles:
 - Converting each page to clean Markdown
 """
 
-import ipaddress
 import logging
-import socket
 from collections import deque
 from typing import List, NamedTuple
 from urllib.parse import parse_qs, urljoin, urlparse
@@ -19,15 +17,19 @@ from markdownify import markdownify
 from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 from playwright.async_api import async_playwright
 
-from app.services.sanitizer import sanitize
+from app.services.parsing.extractor import _extract_title, _find_main_content
+from app.services.parsing.sanitizer import sanitize
+from app.services.fetching.url_utils import (
+    ALLOWED_SCHEMES,
+    BROWSER_TIMEOUT_MS,
+    validate_url,
+)
 
 logger = logging.getLogger(__name__)
 
 # Hard ceiling to protect against runaway crawls
 MAX_PAGES_HARD_LIMIT = 50
-TIMEOUT_MS = 30_000  # 30 seconds
 NETWORKIDLE_TIMEOUT_MS = 5_000  # 5 seconds — short grace period after scrolling
-ALLOWED_SCHEMES = {"http", "https"}
 
 # URL path prefixes to skip (common on WordPress and other CMSes)
 _SKIP_PATH_PREFIXES = (
@@ -69,36 +71,6 @@ class PageData(NamedTuple):
     content_markdown: str
 
 
-def _is_private_address(hostname: str) -> bool:
-    """Return True if hostname resolves to a private/loopback/link-local address."""
-    try:
-        infos = socket.getaddrinfo(hostname, None)
-    except socket.gaierror:
-        return False
-
-    for info in infos:
-        raw_ip = info[4][0].split("%")[0]
-        try:
-            addr = ipaddress.ip_address(raw_ip)
-        except ValueError:
-            continue
-        if addr.is_private or addr.is_loopback or addr.is_link_local or addr.is_reserved:
-            return True
-    return False
-
-
-def _validate_url(url: str) -> None:
-    """Raise ValueError if url fails SSRF / scheme validation."""
-    parsed = urlparse(url)
-    if parsed.scheme not in ALLOWED_SCHEMES:
-        raise ValueError(f"Scheme '{parsed.scheme}' is not allowed. Use http or https.")
-    hostname = parsed.hostname
-    if not hostname:
-        raise ValueError("URL must have a valid hostname.")
-    if _is_private_address(hostname):
-        raise ValueError("Requests to private/internal addresses are not allowed.")
-
-
 def _normalise(url: str) -> str:
     """Strip URL fragment and normalise the root path so that
     http://x.com/ and http://x.com are treated as the same URL."""
@@ -133,17 +105,6 @@ def _should_skip(url: str) -> bool:
     return False
 
 
-def _extract_title(soup: BeautifulSoup) -> str:
-    """Extract page title from HTML."""
-    h1 = soup.find("h1")
-    if h1:
-        return h1.get_text(strip=True)
-    title_tag = soup.find("title")
-    if title_tag:
-        return title_tag.get_text(strip=True)
-    return ""
-
-
 def _extract_links(soup: BeautifulSoup, base_url: str, base_netloc: str) -> List[str]:
     """Extract all internal links from the page."""
     links = []
@@ -173,31 +134,6 @@ def _extract_links(soup: BeautifulSoup, base_url: str, base_netloc: str) -> List
     return links
 
 
-def _find_main_content(soup: BeautifulSoup) -> BeautifulSoup:
-    """Return the most likely main-content element."""
-    for selector in (
-        "article",
-        "main",
-        '[role="main"]',
-        ".entry-content",
-        ".post-content",
-        ".page-content",
-        ".wp-block-post-content",
-        # Elementor page builder
-        ".elementor-section-wrap",
-        # Divi page builder
-        ".et_pb_section",
-        # WPBakery / Visual Composer
-        ".vc_row",
-        # Beaver Builder
-        ".fl-row-content",
-    ):
-        node = soup.select_one(selector)
-        if node:
-            return node
-    return soup.find("body") or soup
-
-
 async def _fetch_with_browser(url: str) -> str:
     """Fetch URL with Playwright, auto-scrolling to trigger lazy loading."""
     async with async_playwright() as pw:
@@ -213,7 +149,7 @@ async def _fetch_with_browser(url: str) -> str:
         page = await context.new_page()
 
         try:
-            await page.goto(url, wait_until="load", timeout=TIMEOUT_MS)
+            await page.goto(url, wait_until="load", timeout=BROWSER_TIMEOUT_MS)
 
             # Auto-scroll to trigger lazy loading
             await page.evaluate("""
@@ -271,7 +207,7 @@ async def crawl_site(
         ValueError: If the URL fails SSRF / scheme validation
         RuntimeError: If browser operations fail
     """
-    _validate_url(start_url)
+    validate_url(start_url)
     max_pages = min(max_pages, MAX_PAGES_HARD_LIMIT)
     base_netloc = urlparse(start_url).netloc
 
