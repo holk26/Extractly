@@ -1,10 +1,10 @@
-"""Tests for DEV_MODE auth bypass and the V2 scrape endpoint.
+"""Tests for PRODUCTION_MODE auth bypass and the V2 scrape endpoint.
 
 Scenarios covered:
-- DEV_MODE=true disables authentication (no token needed).
-- DEV_MODE=false (default) keeps authentication enabled.
+- PRODUCTION_MODE=false disables authentication (no token needed).
+- PRODUCTION_MODE=true (default) keeps authentication enabled.
 - POST /v2/scrape enqueues an Inngest event and returns 200 with a job ID.
-- POST /v2/scrape without auth returns 401 when DEV_MODE is off.
+- POST /v2/scrape without auth returns 401 when PRODUCTION_MODE is true.
 - POST /v2/scrape when Inngest send fails returns 502.
 """
 
@@ -26,17 +26,17 @@ _SIMPLE_HTML = (
 
 
 # ---------------------------------------------------------------------------
-# DEV_MODE auth bypass
+# PRODUCTION_MODE auth bypass
 # ---------------------------------------------------------------------------
 
 
 class TestDevModeAuthBypass:
-    """When DEV_MODE=true, authentication is skipped entirely."""
+    """When PRODUCTION_MODE=false, authentication is skipped entirely."""
 
     def test_dev_mode_true_bypasses_auth(self):
-        """With DEV_MODE=true, protected endpoints accept requests without a token."""
+        """With PRODUCTION_MODE=false, protected endpoints accept requests without a token."""
         with (
-            patch("app.dependencies.auth._DEV_MODE", True),
+            patch("app.dependencies.auth._PRODUCTION_MODE", False),
             patch("app.routers.scrape.fetch_url", new=AsyncMock(return_value=_SIMPLE_HTML)),
         ):
             resp = client.post(
@@ -48,8 +48,8 @@ class TestDevModeAuthBypass:
         assert resp.status_code == 200
 
     def test_dev_mode_false_requires_auth(self):
-        """With DEV_MODE=false, protected endpoints reject requests without a token."""
-        with patch("app.dependencies.auth._DEV_MODE", False):
+        """With PRODUCTION_MODE=true, protected endpoints reject requests without a token."""
+        with patch("app.dependencies.auth._PRODUCTION_MODE", True):
             # Remove bypass override so real auth runs
             app.dependency_overrides.pop(require_auth, None)
             try:
@@ -87,7 +87,7 @@ class TestScrapeV2:
 
     def test_scrape_v2_without_auth_returns_401(self):
         """POST /v2/scrape returns 401 when auth is required and no token is supplied."""
-        with patch("app.dependencies.auth._DEV_MODE", False):
+        with patch("app.dependencies.auth._PRODUCTION_MODE", True):
             app.dependency_overrides.pop(require_auth, None)
             try:
                 resp = client.post("/v2/scrape", json={"url": "https://example.com"})

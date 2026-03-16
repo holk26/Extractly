@@ -13,10 +13,11 @@ Flow:
     3. PocketBase returns 200 → the token is valid; continue.
     4. PocketBase returns anything else → raise HTTP 401 Unauthorized.
 
-Dev mode:
-    When the ``DEV_MODE`` environment variable is set to ``"true"`` (case-
-    insensitive), authentication is completely bypassed.  This is intended
-    for local development only.  **Never** set ``DEV_MODE=true`` in production.
+Production mode:
+    ``PRODUCTION_MODE`` defaults to ``"true"`` — authentication is always
+    enforced.  Set ``PRODUCTION_MODE=false`` to bypass token validation
+    entirely (local development only).  **Never** set ``PRODUCTION_MODE=false``
+    in a publicly reachable environment.
 """
 
 import logging
@@ -34,9 +35,9 @@ _AUTH_REFRESH_PATH = "/api/collections/users/auth-refresh"
 # auto_error=False so we can return a clean 401 instead of FastAPI's default 403
 _http_bearer = HTTPBearer(auto_error=False)
 
-# When DEV_MODE=true the auth check is skipped entirely.
-# Default is production mode (auth enabled).
-_DEV_MODE: bool = os.getenv("DEV_MODE", "false").lower() == "true"
+# PRODUCTION_MODE defaults to true — authentication is always enforced.
+# Set PRODUCTION_MODE=false to bypass auth (local development only).
+_PRODUCTION_MODE: bool = os.getenv("PRODUCTION_MODE", "true").lower() != "false"
 
 
 async def require_auth(
@@ -44,17 +45,17 @@ async def require_auth(
 ) -> None:
     """Verify the Bearer token against PocketBase.
 
-    When ``DEV_MODE=true`` is set in the environment, this function returns
-    immediately without performing any token validation (useful for local
-    development).
+    When ``PRODUCTION_MODE=false`` is set in the environment, this function
+    returns immediately without performing any token validation (useful for
+    local development).
 
     Raises HTTP 401 when:
     - The ``Authorization: Bearer <token>`` header is absent or malformed.
     - PocketBase rejects the token (non-200 response).
     - The PocketBase request itself fails (network error, timeout, etc.).
     """
-    if _DEV_MODE:
-        logger.debug("DEV_MODE enabled – skipping authentication")
+    if not _PRODUCTION_MODE:
+        logger.debug("PRODUCTION_MODE=false – skipping authentication")
         return
 
     if credentials is None:
